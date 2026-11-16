@@ -66,15 +66,24 @@ export function escoposAtivos() {
 // caixinha dele vem das DIVISOES, nao de integrantes (ver
 // vocabularioCaixinha em dominio/caixinha.js). Das Doacoes, ate 04/11/2026
 // ele tinha so o estoque; agora marca as doacoes dos eventos dele tambem.
-const DIVISOES_COM_DOACOES_E_CAIXINHA = ['barra', 'regional'];
+//
+// Desde 14/11/2026 nas 7 (pedido do clube): Oeste, Recreio, Curicica,
+// Taquara e Gardenia ganharam as Doacoes e a Caixinha da Barra. Os
+// Relatorios continuam so na Barra e no Regional (escoposAtivos, acima).
+const DIVISOES_COM_DOACOES_E_CAIXINHA = ['barra', 'regional', 'oeste', 'recreio', 'curicica', 'taquara', 'gardenia'];
 export function temDoacoesECaixinha(chave) { return DIVISOES_COM_DOACOES_E_CAIXINHA.includes(chave); }
 
 // A partir de quando os eventos de uma divisao entram nas Doacoes. O
 // Regional comecou a marcar em 04/11/2026 (decisao do clube): os eventos
 // dele de antes nunca foram marcados, e entrar com eles seria "ninguem
 // levou" em evento que ninguem conferiu. Evento sem data fica (e dos novos).
-// Divisao fora daqui conta desde sempre.
-const DOACOES_DESDE = { regional: '2026-11-04' };
+// Divisao fora daqui conta desde sempre (a Barra, que marca desde o comeco).
+// As 5 que entraram em 14/11/2026 contam desse dia em diante, pelo mesmo
+// motivo do Regional.
+const DOACOES_DESDE = {
+  regional: '2026-11-04',
+  oeste: '2026-11-14', recreio: '2026-11-14', curicica: '2026-11-14', taquara: '2026-11-14', gardenia: '2026-11-14',
+};
 export function doacoesDesde(chave) { return DOACOES_DESDE[chave] || ''; }
 
 // Os eventos de antes do corte que entram mesmo assim (pedido do clube,

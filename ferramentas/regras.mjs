@@ -873,6 +873,14 @@ log('=== doações: kg, cumprimento e quem foi e não levou ===');
     [entraNasDoacoes('regional', { id: 'x', data: '2026-10-30' }), entraNasDoacoes('regional', { id: 'mvkvpv5j7du3r', data: '2026-10-30' }),
       entraNasDoacoes('regional', { id: 'y', data: '2026-11-04' }), entraNasDoacoes('barra', { id: 'z', data: '2020-01-01' })],
     [false, true, true, true]);
+  // 14/11/2026: as 7 divisoes tem Doacoes e Caixinha, e as 5 novas contam
+  // os eventos desse dia em diante.
+  const { temDoacoesECaixinha } = await import(url('nucleo/config.js'));
+  confere('doações e caixinha nas 7 divisões',
+    ['barra', 'regional', 'oeste', 'recreio', 'curicica', 'taquara', 'gardenia'].every(temDoacoesECaixinha), true);
+  confere('doações das divisões novas: só de 14/11/2026 em diante',
+    [entraNasDoacoes('oeste', { id: 'a', data: '2026-11-13' }), entraNasDoacoes('gardenia', { id: 'b', data: '2026-11-14' }), entraNasDoacoes('curicica', { id: 'c', data: '' })],
+    [false, true, true]);
 
   // A lista colada de quem doou: titulo de divisao separa os blocos, ✅
   // colado ou nao, numeracao e grau na linha, e dois "Costa" de divisoes

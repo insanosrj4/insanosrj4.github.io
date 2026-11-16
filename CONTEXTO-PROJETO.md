@@ -686,9 +686,13 @@ aba; `abasVisiveis` em `telas/admin.js` esconde nas divisões). Por enquanto
 Duas seções do menu do organizador, criadas em 18/10/2026 para dar número
 à conversa do clube: quem está bem e onde dá para melhorar. **Só aparecem
 nas divisões de `DIVISOES_COM_DOACOES_E_CAIXINHA`** (`js/nucleo/config.js`),
-hoje a Barra e o Regional. Replicar para outra divisão é acrescentar a
-chave dela ali, e mais nada: telas, planilha e PIN já funcionam para
-qualquer uma.
+que desde 14/11/2026 são **as 7** (até ali, só a Barra e o Regional). Tirar
+uma divisão é tirar a chave dela dali, e mais nada: telas, planilha e PIN
+funcionam para qualquer uma. As cinco que entraram em 14/11/2026 (Oeste,
+Recreio, Curicica, Taquara e Gardênia) contam nas Doações só os eventos
+**desse dia em diante** (`DOACOES_DESDE`), pelo mesmo motivo do Regional: os
+de antes nunca foram marcados. Os **Relatórios** continuam só na Barra e no
+Regional (`escoposAtivos`).
 
 **No Regional as duas têm jeito próprio** (decisão do clube, 19/10/2026):
 
