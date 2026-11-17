@@ -1355,6 +1355,23 @@ cards lado a lado, Entrada e Saída, e mostra apenas o formulário escolhido.
   app mandava outro, e a planilha recusava. Agora o escolhido é sempre um
   dos que aparecem (`novoForm` e `seletorMaterial`).
 
+- **Movimentar com painel (17/11/2026):** no lugar dos dois cartões
+  Entrada/Saída, o mesmo painel do estoque das Doações: saldo atual (em un,
+  e quantos materiais têm saldo), 🟢 Entrou / 🔴 Saiu desde o começo, a
+  pizza e os botões **🔴 Lançar saída** e **🟢 Lançar entrada** (tocar de
+  novo fecha o formulário). Embaixo do formulário, o **📅 Mês a mês** dos 6
+  últimos meses. A conta é `painelEstoqueAdm`; anulado não entra.
+- **Relatório em duas colunas (17/11/2026):** a aba Relatório não tem mais
+  os filtros Tudo/Entradas/Saídas. São duas colunas lado a lado, até no
+  celular: 🟢 Entradas (borda verde) e 🔴 Saídas (borda vermelha), com linhas
+  finas (nome, quantidade, data e o destino). Tocar abre os detalhes e o
+  "anular". Os anulados ficam dobrados no fim da coluna ("🗂️ 3 anulados ▸")
+  e, abertos, cada um tem **🗑️ Excluir de vez**. Excluir só vale para um
+  anulado (`excluirMovimentoEstoqueAdm`, ação `estoqueAdmExcluir`), então o
+  saldo não muda; a exclusão fica no 📜 Registros. O Gerar relatório traz
+  sempre as entradas e as saídas. **Precisa do Code.gs na versão
+  `2026-11-17-estoque-adm-excluir`.**
+
 ## 📜 Registros (o diário do app)
 
 Pedido em 17/11/2026, para achar erro sem depender de alguém saber explicar.
@@ -1379,7 +1396,7 @@ Pedido em 17/11/2026, para achar erro sem depender de alguém saber explicar.
   com filtros "Só erros" e por divisão, 150 por vez e "Ver mais antigos".
 - **90 dias:** o gatilho da madrugada (`encerrarEventosVencidos`) também
   chama `limparRegistroAntigo`.
-- **Precisa do Code.gs na versão `2026-11-17-registro`.**
+- **Precisa do Code.gs na versão `2026-11-17-registro` ou mais nova.**
 
 ## A convocação: o app lê e escreve
 

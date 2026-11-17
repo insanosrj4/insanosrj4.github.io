@@ -7,8 +7,10 @@ import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, hojeISO, imprimirTexto, ordenarPorHierarquia } from '../nucleo/util.js';
-import { TAMANHO_MAXIMO_TIPO_ADM, estoqueAtualAdm, filtrarMovimentosEstoqueAdm, gruposEstoqueAdm, palpiteTipoMaterialAdm, quantidadeEstoqueAdm, relatorioEstoqueAdm, resumoEstoqueAdm, textoEstoqueAtualAdm, textoRelatorioEstoqueAdm, textoResumoEstoqueAdm, textoTipoNovoAdm, tipoDoMaterialAdm, tipoMaterialAdmPorChave, tiposMaterialAdm } from '../dominio/estoque-adm.js';
+import { TAMANHO_MAXIMO_TIPO_ADM, estoqueAtualAdm, painelEstoqueAdm, gruposEstoqueAdm, palpiteTipoMaterialAdm, quantidadeEstoqueAdm, relatorioEstoqueAdm, resumoEstoqueAdm, textoEstoqueAtualAdm, textoRelatorioEstoqueAdm, textoResumoEstoqueAdm, textoTipoNovoAdm, tipoDoMaterialAdm, tipoMaterialAdmPorChave, tiposMaterialAdm } from '../dominio/estoque-adm.js';
+import { nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
 import { botaoGerarRelatorio } from '../ui/comuns.js';
+import { renderPizza } from '../ui/graficos.js';
 import { imagensEstoqueAtualAdm, imagensRelatorioEstoqueAdm, mostrarPreviaImagem } from '../ui/imagem.js';
 
 function dados() { return state.estoqueAdmDados || { itens: [], movimentos: [] }; }
@@ -158,15 +160,68 @@ function formularioMovimento() {
   `;
 }
 
-function renderMovimentar() {
+// O painel em cima (17/11/2026, no jeito do estoque das Doacoes): o saldo,
+// o que entrou e saiu, a pizza e os botoes de lancar. O formulario abre
+// embaixo, e o mes a mes fica no fim.
+function painelMovimentar(p) {
   const f = state.estoqueAdmForm;
+  const un = (n) => `${n} un`;
+  return `
+    <div class="card">
+      <div class="painel-titulo">📦 Estoque ADM</div>
+      <div class="fin-subtitulo">Materiais do Regional RJ4</div>
+      <div class="fin-saldo" data-anima="estoque-adm-saldo:${p.saldo}">
+        <span>Saldo atual</span>
+        <b>${un(p.saldo)}</b>
+      </div>
+      <div class="fin-nota" style="text-align:center; margin-top:-4px;">${p.materiais} ${p.materiais === 1 ? 'material com saldo' : 'materiais com saldo'}</div>
+      <div class="fin-placar">
+        <div class="fin-placar-item entrada"><span>🟢 Entrou</span><b>${un(p.entrou)}</b></div>
+        <div class="fin-placar-item saida"><span>🔴 Saiu</span><b>${un(p.saiu)}</b></div>
+      </div>
+      ${renderPizza([
+        { label: 'Entradas', value: p.entrou, cor: 'var(--status-confirmado)', texto: un(p.entrou) },
+        { label: 'Saídas', value: p.saiu, cor: 'var(--status-infracional)', texto: un(p.saiu) },
+      ], 130, 'Nada lançado')}
+      <div class="row-gap no-print" style="margin-top:14px;">
+        <button class="btn ${f && f.tipo === 'saida' ? '' : 'secondary'}" style="flex:1;" data-action="estoque-adm-tipo" data-value="saida" ${p.saldo > 0 ? '' : 'disabled'}>🔴 Lançar saída</button>
+        <button class="btn ${f && f.tipo === 'entrada' ? '' : 'secondary'}" style="flex:1;" data-action="estoque-adm-tipo" data-value="entrada">🟢 Lançar entrada</button>
+      </div>
+    </div>
+  `;
+}
+
+// Entrou x saiu nos 6 ultimos meses - as mesmas barras do estoque das Doacoes.
+function barrasPorMes(meses) {
+  const maior = Math.max(...meses.map(m => Math.max(m.entradas, m.saidas)), 1);
+  return `
+    <div class="card">
+      <div class="painel-titulo">📅 Mês a mês</div>
+      <div class="fin-legenda"><span class="fin-swatch entrada"></span>Entradas <span class="fin-swatch saida"></span>Saídas</div>
+      <div class="fin-barras" data-anima="estoque-adm-barras:${meses.map(m => m.entradas + '/' + m.saidas).join(',')}">
+        ${meses.map(m => `
+          <div class="fin-barra-mes" title="${escapeHtml(nomeDoMes(m.mes))}: entrou ${m.entradas} un, saiu ${m.saidas} un">
+            <div class="fin-barra-par">
+              <div class="fin-barra entrada" style="height:${Math.round((m.entradas / maior) * 100)}%;"></div>
+              <div class="fin-barra saida" style="height:${Math.round((m.saidas / maior) * 100)}%;"></div>
+            </div>
+            <div class="barra-mes-nome">${escapeHtml(nomeCurtoDoMes(m.mes))}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderMovimentar() {
+  const d = dados();
+  const p = painelEstoqueAdm(d.itens, d.movimentos);
+  // O formulario vem logo abaixo dos botoes; o mes a mes, depois dele.
   return `
     ${aviso()}
-    <div class="estoque-adm-escolhas">
-      <button class="card estoque-adm-escolha entrada ${f && f.tipo === 'entrada' ? 'ativa' : ''}" data-action="estoque-adm-tipo" data-value="entrada"><b>🟢 Entrada</b><span>Material recebido</span></button>
-      <button class="card estoque-adm-escolha saida ${f && f.tipo === 'saida' ? 'ativa' : ''}" data-action="estoque-adm-tipo" data-value="saida"><b>🔴 Saída</b><span>Material entregue</span></button>
-    </div>
-    ${formularioMovimento()}
+    ${painelMovimentar(p)}
+    ${state.estoqueAdmForm ? formularioMovimento() : ''}
+    ${p.meses.length ? barrasPorMes(p.meses) : ''}
   `;
 }
 
@@ -241,44 +296,95 @@ function renderEstoqueAtual() {
   `;
 }
 
+// O Relatorio em duas colunas (17/11/2026): a verde com as entradas e a
+// vermelha com as saidas, lado a lado, sem se misturar. Cada lancamento e
+// uma linha fina (nome, quantidade, data); tocar abre os detalhes e o
+// "anular". Os anulados ficam dobrados no fim de cada coluna, e la cada um
+// pode ser excluido de vez.
 function linhaMovimento(m) {
-  const entrada = m.tipo === 'entrada';
-  const confirmando = state.estoqueAdmAnularId === m.id;
-  const destino = !entrada && m.destinoNome ? ` · para ${escapeHtml(m.destinoNome)}` : '';
+  const saida = m.tipo === 'saida';
+  const aberto = state.estoqueAdmMovAberto === m.id;
+  const data = formatDataBR(m.data);
   return `
-    <div class="card estoque-adm-movimento ${entrada ? 'entrada' : 'saida'}${m.anulado ? ' anulado' : ''}">
-      <div class="estoque-adm-mov-topo"><b>${entrada ? '🟢 Entrada' : '🔴 Saída'} · ${m.quantidade} un</b><span>${escapeHtml(formatDataBR(m.data))}</span></div>
-      <div class="name">${escapeHtml(m.material)}</div>
-      <div class="meta">${entrada ? 'Recebido no estoque' : 'Retirado do estoque'}${destino}${m.observacao ? ` · ${escapeHtml(m.observacao)}` : ''}</div>
-      ${m.anulado ? '<div class="estoque-adm-anulado">Lançamento anulado</div>' : confirmando ? `
-        <div class="alert" style="margin:10px 0 0;"><div class="alert-msg">Anular este lançamento? O saldo será recalculado e o registro continuará no histórico.</div><div class="row-gap" style="margin-top:8px;"><button class="btn danger" data-action="estoque-adm-anular-confirmar" data-id="${escapeHtml(m.id)}">Anular</button><button class="btn secondary" data-action="estoque-adm-anular-cancelar">Cancelar</button></div></div>
-      ` : `<button class="btn ghost" style="padding:4px 0; margin-top:6px; font-size:11px;" data-action="estoque-adm-anular-pedir" data-id="${escapeHtml(m.id)}">Corrigir: anular lançamento</button>`}
+    <button class="estoque-adm-mov${m.anulado ? ' anulado' : ''}${aberto ? ' aberta' : ''}" data-action="estoque-adm-mov-abrir" data-id="${escapeHtml(m.id)}" aria-expanded="${aberto}">
+      <span class="estoque-adm-mov-nome">${escapeHtml(m.material)}</span>
+      <b>${m.quantidade} un</b>
+      <small>${escapeHtml(data.slice(0, 5))}${saida && m.destinoNome ? ` · → ${escapeHtml(m.destinoNome)}` : ''}</small>
+    </button>
+    ${aberto ? detalheMovimento(m, data) : ''}
+  `;
+}
+
+function detalheMovimento(m, data) {
+  const saida = m.tipo === 'saida';
+  const anulando = state.estoqueAdmAnularId === m.id;
+  const excluindo = state.estoqueAdmExcluirId === m.id;
+  const travado = state.estoqueAdmSalvando ? 'disabled' : '';
+  let acao;
+  if (m.anulado) {
+    acao = `
+      <div class="estoque-adm-anulado">Anulado${m.anuladoEm ? ` em ${escapeHtml(m.anuladoEm)}` : ''}</div>
+      ${excluindo ? `
+        <div class="alert" style="margin:8px 0 0;"><div class="alert-msg">Excluir de vez? Some da tela e da planilha. Fica anotado no 📜 Registros.</div>
+          <div class="row-gap" style="margin-top:8px;"><button class="btn danger" data-action="estoque-adm-excluir-confirmar" data-id="${escapeHtml(m.id)}" ${travado}>Excluir</button><button class="btn secondary" data-action="estoque-adm-excluir-cancelar">Cancelar</button></div></div>
+      ` : `<button class="btn ghost estoque-adm-mov-botao" data-action="estoque-adm-excluir-pedir" data-id="${escapeHtml(m.id)}">🗑️ Excluir de vez</button>`}`;
+  } else {
+    acao = anulando ? `
+      <div class="alert" style="margin:8px 0 0;"><div class="alert-msg">Anular este lançamento? O saldo será recalculado e ele vai pros anulados, no fim da coluna.</div>
+        <div class="row-gap" style="margin-top:8px;"><button class="btn danger" data-action="estoque-adm-anular-confirmar" data-id="${escapeHtml(m.id)}" ${travado}>Anular</button><button class="btn secondary" data-action="estoque-adm-anular-cancelar">Cancelar</button></div></div>
+    ` : `<button class="btn ghost estoque-adm-mov-botao" data-action="estoque-adm-anular-pedir" data-id="${escapeHtml(m.id)}">Corrigir: anular lançamento</button>`;
+  }
+  return `
+    <div class="estoque-adm-mov-detalhe">
+      <div>📅 ${escapeHtml(data)}</div>
+      ${saida && m.destinoNome ? `<div>➡️ Para ${escapeHtml(m.destinoNome)}</div>` : ''}
+      ${m.observacao ? `<div>📝 ${escapeHtml(m.observacao)}</div>` : ''}
+      ${acao}
+    </div>
+  `;
+}
+
+function colunaMovimentos(tipo) {
+  const entrada = tipo === 'entrada';
+  const todos = dados().movimentos.filter(m => m.tipo === tipo);
+  const validos = todos.filter(m => !m.anulado);
+  const anulados = todos.filter(m => m.anulado);
+  const total = validos.reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
+  const abertos = state.estoqueAdmAnuladosAbertos === tipo;
+  return `
+    <div class="card estoque-adm-coluna ${tipo}">
+      <div class="estoque-adm-coluna-titulo">${entrada ? '🟢 Entradas' : '🔴 Saídas'}</div>
+      <div class="estoque-adm-coluna-total">${total} un · ${validos.length} ${validos.length === 1 ? 'lançamento' : 'lançamentos'}</div>
+      ${validos.length ? validos.map(linhaMovimento).join('') : `<div class="estoque-adm-coluna-vazia">${entrada ? 'Nenhuma entrada ainda.' : 'Nenhuma saída ainda.'}</div>`}
+      ${anulados.length ? `
+        <button class="estoque-adm-anulados" data-action="estoque-adm-anulados" data-value="${tipo}" aria-expanded="${abertos}">🗂️ ${anulados.length} ${anulados.length === 1 ? 'anulado' : 'anulados'} <i>${abertos ? '▾' : '▸'}</i></button>
+        ${abertos ? anulados.map(linhaMovimento).join('') : ''}
+      ` : ''}
     </div>
   `;
 }
 
 function relatorioAtual() {
   const d = dados();
-  return relatorioEstoqueAdm(d.itens, d.movimentos, state.estoqueAdmFiltroTipo);
+  return relatorioEstoqueAdm(d.itens, d.movimentos, 'todos');
 }
 
 function renderRelatorio() {
-  const lista = filtrarMovimentosEstoqueAdm(dados().movimentos, state.estoqueAdmFiltroTipo);
   return `
     ${aviso()}
-    <div class="fin-categorias no-print" style="margin-bottom:12px;">
-      ${[['todos','Tudo'],['entrada','🟢 Entradas'],['saida','🔴 Saídas']].map(([chave, nome]) => `<button class="pilula ${state.estoqueAdmFiltroTipo === chave ? 'active' : ''}" data-action="estoque-adm-filtro" data-value="${chave}">${nome}</button>`).join('')}
-    </div>
     <div class="card no-print">
       <div class="painel-titulo">📊 Relatório do estoque</div>
-      <div class="fin-explica">Saldo de cada material e as movimentações de "${escapeHtml(relatorioAtual().rotuloFiltro)}". Lançamento anulado fica de fora.</div>
+      <div class="fin-explica">Saldo de cada material e todas as entradas e saídas. Lançamento anulado fica de fora. Toque num lançamento para ver os detalhes.</div>
       ${botaoGerarRelatorio('estoque-adm-relatorio', [
         { acao: 'estoque-adm-relatorio-texto', rotulo: '📋 WhatsApp' },
         { acao: 'estoque-adm-relatorio-pdf', rotulo: '📄 PDF' },
         { acao: 'estoque-adm-relatorio-imagem', rotulo: '🖼️ Imagem' },
       ], 'margin-top:4px;')}
     </div>
-    ${lista.length ? lista.map(linhaMovimento).join('') : '<div class="empty">Nenhuma movimentação neste filtro.</div>'}
+    <div class="estoque-adm-colunas">
+      ${colunaMovimentos('entrada')}
+      ${colunaMovimentos('saida')}
+    </div>
   `;
 }
 
@@ -333,7 +439,9 @@ async function salvarTipo(id, tipo) {
 
 export const acoes = {
   'estoque-adm-tipo': async (id, target, action, e) => {
-    state.estoqueAdmForm = novoForm(target.dataset.value);
+    // Tocar de novo no botao que ja esta aberto fecha o formulario.
+    const tipo = target.dataset.value;
+    state.estoqueAdmForm = state.estoqueAdmForm && state.estoqueAdmForm.tipo === tipo ? null : novoForm(tipo);
     state.estoqueAdmMsg = null;
     return render();
   },
@@ -418,13 +526,37 @@ export const acoes = {
     const r = estoqueAtual();
     return mostrarPreviaImagem(() => imagensEstoqueAtualAdm(r), 'estoque-adm-atual.png');
   },
-  'estoque-adm-filtro': async (id, target, action, e) => { state.estoqueAdmFiltroTipo = target.dataset.value; return render(); },
   // O relatorio pro grupo: texto, PDF (o mesmo texto, impresso) e imagem.
   'estoque-adm-relatorio-texto': async (id, target, action, e) => copiarTexto(textoRelatorioEstoqueAdm(relatorioAtual())),
   'estoque-adm-relatorio-pdf': async (id, target, action, e) => imprimirTexto(textoRelatorioEstoqueAdm(relatorioAtual())),
   'estoque-adm-relatorio-imagem': async (id, target, action, e) => {
     const r = relatorioAtual();
     return mostrarPreviaImagem(() => imagensRelatorioEstoqueAdm(r), 'estoque-adm-relatorio.png');
+  },
+  'estoque-adm-mov-abrir': async (id, target, action, e) => {
+    state.estoqueAdmMovAberto = state.estoqueAdmMovAberto === id ? null : id;
+    state.estoqueAdmAnularId = null;
+    state.estoqueAdmExcluirId = null;
+    return render();
+  },
+  'estoque-adm-anulados': async (id, target, action, e) => {
+    const tipo = target.dataset.value;
+    state.estoqueAdmAnuladosAbertos = state.estoqueAdmAnuladosAbertos === tipo ? null : tipo;
+    return render();
+  },
+  'estoque-adm-excluir-pedir': async (id, target, action, e) => { state.estoqueAdmExcluirId = id; return render(); },
+  'estoque-adm-excluir-cancelar': async (id, target, action, e) => { state.estoqueAdmExcluirId = null; return render(); },
+  'estoque-adm-excluir-confirmar': async (id, target, action, e) => {
+    if (state.estoqueAdmSalvando) return;
+    state.estoqueAdmSalvando = true; state.estoqueAdmMsg = null; render();
+    try {
+      const r = await api('estoqueAdmExcluir', { id });
+      state.estoqueAdmDados = { itens:r.itens || [], movimentos:r.movimentos || [] };
+      state.estoqueAdmMsg = { ok:true, texto:'Lançamento anulado excluído.' };
+      state.estoqueAdmExcluirId = null;
+      state.estoqueAdmMovAberto = null;
+    } catch (e) { state.estoqueAdmMsg = { ok:false, texto:e.message }; }
+    state.estoqueAdmSalvando = false; render();
   },
   'estoque-adm-anular-pedir': async (id, target, action, e) => { state.estoqueAdmAnularId = id; return render(); },
   'estoque-adm-anular-cancelar': async (id, target, action, e) => { state.estoqueAdmAnularId = null; return render(); },
@@ -436,6 +568,7 @@ export const acoes = {
       state.estoqueAdmDados = { itens:r.itens || [], movimentos:r.movimentos || [] };
       state.estoqueAdmMsg = { ok:true, texto:'Lançamento anulado e estoque recalculado.' };
       state.estoqueAdmAnularId = null;
+      state.estoqueAdmMovAberto = null;
     } catch (e) { state.estoqueAdmMsg = { ok:false, texto:e.message }; }
     state.estoqueAdmSalvando = false; render();
   },

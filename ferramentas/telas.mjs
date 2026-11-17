@@ -877,6 +877,13 @@ const estoqueAdmDados = {
 };
 const eadm = { isAdmin:true, adminEscopo:'regional', estoqueAdmDados, estoqueAdmCarregando:false, estoqueAdmErro:null };
 add('estoque ADM / movimentar',           { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:null }, T.renderAdmin);
+add('estoque ADM / movimentar com painel', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:null,
+  estoqueAdmDados:{ ...estoqueAdmDados, movimentos: estoqueAdmDados.movimentos.map(m => ({ ...m, data: diaReg(0) })) } }, (app) => {
+  T.renderAdmin(app);
+  const h = [...elementos.values()].map(el => el.innerHTML || '').join('');
+  for (const t of ['Saldo atual', 'Entrou', 'Saiu', 'Lançar saída', 'Lançar entrada', 'Mês a mês']) if (!h.includes(t)) throw new Error('faltou no painel: ' + t);
+});
+add('estoque ADM / movimentar vazio', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:null, estoqueAdmDados:{ itens:[], movimentos:[] } }, T.renderAdmin);
 add('estoque ADM / formulario entrada',   { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
   tipo:'entrada', materialId:'novo', materialNome:'Colete', quantidade:'5', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'Doação' } }, T.renderAdmin);
 add('estoque ADM / formulario saída',     { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
@@ -904,9 +911,21 @@ add('estoque ADM / cadastro com tipo criado escolhido', { ...eadm, adminTab:'est
 add('estoque ADM / estoque vazio',        { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmDados:{ itens:[], movimentos:[] } }, T.renderAdmin);
 add('estoque ADM / material novo sem palpite', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
   tipo:'entrada', materialId:'novo', materialNome:'Rádio', materialTipo:'', quantidade:'1', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'' } }, T.renderAdmin);
-add('estoque ADM / relatório',            { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'todos' }, T.renderAdmin);
-add('estoque ADM / relatório entradas',   { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'entrada' }, T.renderAdmin);
-add('estoque ADM / relatório (gerar aberto)', { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'saida', gerarRelatorioAberto:'estoque-adm-relatorio' }, T.renderAdmin);
+add('estoque ADM / relatório em duas colunas', { ...eadm, adminTab:'estoque-adm-relatorio' }, (app) => {
+  T.renderAdmin(app);
+  const h = [...elementos.values()].map(el => el.innerHTML || '').join('');
+  if (!h.includes('estoque-adm-coluna entrada') || !h.includes('estoque-adm-coluna saida')) throw new Error('faltou uma das colunas');
+  if (!h.includes('1 anulado')) throw new Error('faltou o dobrado dos anulados');
+  if (h.includes('ea2')) throw new Error('o anulado apareceu sem abrir');
+});
+add('estoque ADM / relatório (gerar aberto)', { ...eadm, adminTab:'estoque-adm-relatorio', gerarRelatorioAberto:'estoque-adm-relatorio' }, T.renderAdmin);
+add('estoque ADM / relatório linha aberta', { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmMovAberto:'ea3' }, T.renderAdmin);
+add('estoque ADM / relatório anulando', { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmMovAberto:'ea1', estoqueAdmAnularId:'ea1' }, T.renderAdmin);
+add('estoque ADM / relatório anulados abertos', { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmAnuladosAbertos:'saida', estoqueAdmMovAberto:'ea2' }, (app) => {
+  T.renderAdmin(app);
+  if (![...elementos.values()].some(el => (el.innerHTML || '').includes('estoque-adm-excluir-pedir'))) throw new Error('faltou o Excluir de vez');
+});
+add('estoque ADM / relatório excluindo', { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmAnuladosAbertos:'saida', estoqueAdmMovAberto:'ea2', estoqueAdmExcluirId:'ea2' }, T.renderAdmin);
 add('estoque ADM / relatório vazio',      { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmDados:{ itens:[], movimentos:[] } }, T.renderAdmin);
 add('estoque ADM / confirmar anulação',   { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmAnularId:'ea3' }, T.renderAdmin);
 add('estoque ADM / carregando',           { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmCarregando:true }, T.renderAdmin);
@@ -1056,7 +1075,7 @@ const LIMPO = {
   grauMembroId:null, grauEscolhido:null, cargoEscolhido:null, grauSalvando:false, grauErro:null, preencherEntradasIds:null, entradasRascunho:{}, entradasSalvando:false, entradasMsg:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
   estoqueAdmDados:null, estoqueAdmCarregando:false, estoqueAdmErro:null, estoqueAdmForm:null,
-  estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null, estoqueAdmTipoAberto:null, estoqueAdmTipoCriar:null, estoqueAdmGrupoAberto:null,
+  estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmAnularId:null, estoqueAdmMovAberto:null, estoqueAdmAnuladosAbertos:null, estoqueAdmExcluirId:null, estoqueAdmTipoAberto:null, estoqueAdmTipoCriar:null, estoqueAdmGrupoAberto:null,
   registroLinhas:null, registroCarregando:false, registroErro:null, registroSoErros:false, registroDivisao:'', registroTemMais:false, registroMais:false,
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,

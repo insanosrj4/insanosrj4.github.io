@@ -38,7 +38,7 @@ const ACOES_PROTEGIDAS = [
   'caixinhaLancamentoSalvar', 'caixinhaLancamentoRemover', 'membrosEntradaSalvar',
   'estoqueDoacoesMovimentar', 'estoqueDoacoesAnular',
   'membroMovimentar', 'movimentos', 'membroConfirmarGrau',
-  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular', 'estoqueAdmTipo',
+  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular', 'estoqueAdmTipo', 'estoqueAdmExcluir',
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
   'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
   'fichaMembro', 'fichaMembroSalvar', 'fichasVarias', 'aniversarios',

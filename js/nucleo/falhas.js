@@ -38,6 +38,7 @@ const O_QUE = {
   estoqueAdmMovimentar: p => (p && p.tipo === 'saida' ? 'registrar a saída' : 'registrar a entrada'),
   estoqueAdmAnular: 'anular o lançamento',
   estoqueAdmTipo: 'mudar o tipo do material',
+  estoqueAdmExcluir: 'excluir o lançamento anulado',
   acaoSocialIdeiaSalvar: 'salvar a ideia',
   acaoSocialIdeiaRemover: 'apagar a ideia',
   acaoSocialAgendaSalvar: 'salvar a ação na agenda',

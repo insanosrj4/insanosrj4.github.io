@@ -512,6 +512,20 @@ log('=== estoque ADM do Regional: entradas, saidas, saldo e historico ===');
   confere('trocar tipo de dentro de uma divisao e recusado',
     tentar(() => contexto.executar('estoqueAdmTipo', { escopo:'barra', pin:'0418', id:materialId, tipo:'coletes' })),
     'O Estoque ADM e exclusivo do Regional');
+
+  // Excluir de vez: so o anulado (17/11/2026).
+  {
+    const ex = contexto.executar('estoqueAdm', cred).movimentos;
+    const valendo = ex.find(m => !m.anulado);
+    confere('excluir um lançamento que vale é recusado', tentar(() => contexto.executar('estoqueAdmExcluir', { ...cred, id: valendo.id })),
+      'So lancamento anulado pode ser excluido. Anule primeiro');
+    const anulado = ex.find(m => m.anulado);
+    const saldoAntes = contexto.executar('estoqueAdm', cred).itens.map(x => x.quantidade);
+    confere('excluir pela Barra é recusado', tentar(() => contexto.executar('estoqueAdmExcluir', { escopo:'barra', pin:'1234', id: anulado.id })), 'O Estoque ADM e exclusivo do Regional');
+    const depois = contexto.executar('estoqueAdmExcluir', { ...cred, id: anulado.id });
+    confere('o anulado some do livro', depois.movimentos.some(m => m.id === anulado.id), false);
+    confere('e o saldo não muda', depois.itens.map(x => x.quantidade), saldoAntes);
+  }
 }
 
 log('');

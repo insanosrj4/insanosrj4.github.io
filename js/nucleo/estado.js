@@ -319,7 +319,6 @@ export let state = {
   estoqueAdmForm: null,
   estoqueAdmSalvando: false,
   estoqueAdmMsg: null,
-  estoqueAdmFiltroTipo: 'todos',
   estoqueAdmAnularId: null,
   // O material da aba Estoque com a troca de tipo aberta (tocou na linha).
   estoqueAdmTipoAberto: null,
@@ -328,6 +327,11 @@ export let state = {
   estoqueAdmTipoCriar: null,
   // O tipo aberto na aba Estoque (a chave), ou null = todos fechados.
   estoqueAdmGrupoAberto: null,
+  // O Relatorio em duas colunas: o lancamento aberto (id), a coluna com os
+  // anulados abertos ('entrada' | 'saida') e o anulado sendo excluido.
+  estoqueAdmMovAberto: null,
+  estoqueAdmAnuladosAbertos: null,
+  estoqueAdmExcluirId: null,
 
   // 📜 Registros (telas/registro.js): a lista lida da planilha, os filtros
   // (so erros, divisao) e se ha mais antigos pra buscar.

@@ -162,6 +162,30 @@ export function textoEstoqueAtualAdm(r) {
   return partes.join('\n');
 }
 
+// O painel da aba Movimentar (17/11/2026, no jeito do estoque das Doacoes):
+// o saldo de hoje, quanto entrou e saiu desde o comeco e o mes a mes dos 6
+// ultimos meses (ate o atual). Anulado nao conta.
+export function painelEstoqueAdm(itens, movimentos, hoje = hojeISO()) {
+  const validos = (movimentos || []).filter(m => !m.anulado);
+  const soma = (lista, t) => lista.filter(m => m.tipo === t).reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
+  const comSaldo = (itens || []).filter(x => Number(x.quantidade) > 0);
+  const [ano, mes] = hoje.split('-').map(Number);
+  const meses = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(ano, mes - 1 - i, 1);
+    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const doMes = validos.filter(m => String(m.data || '').slice(0, 7) === chave);
+    meses.push({ mes: chave, entradas: soma(doMes, 'entrada'), saidas: soma(doMes, 'saida') });
+  }
+  return {
+    saldo: comSaldo.reduce((s, x) => s + Number(x.quantidade), 0),
+    materiais: comSaldo.length,
+    entrou: soma(validos, 'entrada'),
+    saiu: soma(validos, 'saida'),
+    meses: meses.some(m => m.entradas || m.saidas) ? meses : [],
+  };
+}
+
 export function filtrarMovimentosEstoqueAdm(movimentos, tipo) {
   const lista = movimentos || [];
   return tipo && tipo !== 'todos' ? lista.filter(x => x.tipo === tipo) : lista;

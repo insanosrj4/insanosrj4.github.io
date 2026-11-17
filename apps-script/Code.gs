@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-17-registro';
+var VERSAO = '2026-11-17-estoque-adm-excluir';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -367,7 +367,7 @@ var ACOES_PROTEGIDAS = [
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
   'membroMovimentar', 'movimentos', 'membroConfirmarGrau',
   // Estoque administrativo: inclusive a leitura e exclusiva do Regional.
-  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular', 'estoqueAdmTipo',
+  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular', 'estoqueAdmTipo', 'estoqueAdmExcluir',
   // O planejador de Acoes Sociais de cada divisao.
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
   'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
@@ -462,6 +462,7 @@ function executar(action, p) {
   if (action === 'estoqueAdmMovimentar') return comTrava(function () { return movimentarEstoqueAdm(p); });
   if (action === 'estoqueAdmAnular') return comTrava(function () { return anularMovimentoEstoqueAdm(p); });
   if (action === 'estoqueAdmTipo') return comTrava(function () { return tipoMaterialEstoqueAdm(p); });
+  if (action === 'estoqueAdmExcluir') return comTrava(function () { return excluirMovimentoEstoqueAdm(p); });
   if (action === 'acoesSociais') return lerAcoesSociais(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'acaoSocialIdeiaSalvar') return comTrava(function () { return salvarIdeiaAcaoSocial(p); });
   if (action === 'acaoSocialIdeiaRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS, p); });
@@ -588,7 +589,7 @@ var ROTULOS_REGISTRO = {
   membrosEntradaSalvar: 'Datas de entrada',
   estoqueDoacoesMovimentar: 'Estoque Doações', estoqueDoacoesAnular: 'Estoque Doações: anulado',
   membroMovimentar: 'Entrada/Saída', membroConfirmarGrau: 'Grau confirmado',
-  estoqueAdmMovimentar: 'Estoque ADM', estoqueAdmAnular: 'Estoque ADM: anulado', estoqueAdmTipo: 'Estoque ADM: tipo',
+  estoqueAdmMovimentar: 'Estoque ADM', estoqueAdmAnular: 'Estoque ADM: anulado', estoqueAdmTipo: 'Estoque ADM: tipo', estoqueAdmExcluir: 'Estoque ADM: anulado excluído',
   acaoSocialIdeiaSalvar: 'Ações Sociais: ideia', acaoSocialIdeiaRemover: 'Ações Sociais: ideia apagada',
   acaoSocialAgendaSalvar: 'Ações Sociais: agenda', acaoSocialAgendaRemover: 'Ações Sociais: tirada da agenda',
   acaoSocialTextoSalvar: 'Ações Sociais: texto', acaoSocialTextoRemover: 'Ações Sociais: texto apagado',
@@ -655,7 +656,7 @@ function contextoAntesDoRegistro(action, p) {
     var destino = String(p.destinoTipo) === 'membro' ? nomeDe(ABA_MEMBROS, CAB_MEMBROS, String(p.destinoId || '')) : '';
     return { material: c ? String(c.valores[1] || '') : '', destino: destino };
   }
-  if (action === 'estoqueAdmAnular') {
+  if (action === 'estoqueAdmAnular' || action === 'estoqueAdmExcluir') {
     var m = acharLinha(aba(ABA_ESTOQUE_ADM_MOV, CAB_ESTOQUE_ADM_MOV), function (l) { return String(l[0]) === id; });
     return m ? { material: String(m.valores[4] || ''), quantidade: String(m.valores[5] || ''), tipo: String(m.valores[2] || '') } : {};
   }
@@ -737,7 +738,7 @@ function detalheDoRegistro(a, p, r, antes) {
     case 'estoqueAdmMovimentar':
       x = [oQue(p.tipo), String(p.quantidade || '') + ' un', p.materialNome || antes.material || p.materialId,
         String(p.tipo) === 'saida' ? 'para ' + (p.destinoTipo === 'divisao' ? div(p.destinoId) : (antes.destino || p.destinoId)) : '', dia(p.data)]; break;
-    case 'estoqueAdmAnular': x = [antes.tipo ? oQue(antes.tipo) : '', antes.quantidade ? antes.quantidade + ' un' : '', antes.material || 'lançamento ' + p.id]; break;
+    case 'estoqueAdmAnular': case 'estoqueAdmExcluir': x = [antes.tipo ? oQue(antes.tipo) : '', antes.quantidade ? antes.quantidade + ' un' : '', antes.material || 'lançamento ' + p.id]; break;
     case 'estoqueAdmTipo': x = [antes.material || p.id, '→ ' + p.tipo]; break;
     case 'acaoSocialIdeiaSalvar': x = [div(p.divisao), p.nome]; break;
     case 'acaoSocialAgendaSalvar': x = [div(p.divisao), mes(p.mes), p.acao || '', p.situacao]; break;
@@ -3271,6 +3272,20 @@ function tipoMaterialEstoqueAdm(p) {
   var achado = acharLinha(s, function (l) { return String(l[0]) === id; });
   if (!id || !achado) throw new Error('Material nao encontrado');
   s.getRange(achado.indice, 4).setNumberFormat('@').setValue(tipo);
+  return dadosEstoqueAdm();
+}
+
+// Excluir de vez (17/11/2026, decisao do clube): so um lancamento JA
+// anulado, que ja nao conta no saldo - entao o saldo nao muda. Tira a
+// poluicao da tela; o Registro guarda que foi excluido e o que era.
+function excluirMovimentoEstoqueAdm(p) {
+  exigirRegionalEstoqueAdm(p);
+  var id = String(p.id || '');
+  var s = aba(ABA_ESTOQUE_ADM_MOV, CAB_ESTOQUE_ADM_MOV);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === id; });
+  if (!id || !achado) throw new Error('Lancamento nao encontrado');
+  if (!String(achado.valores[11] || '')) throw new Error('So lancamento anulado pode ser excluido. Anule primeiro');
+  s.deleteRow(achado.indice);
   return dadosEstoqueAdm();
 }
 

@@ -238,6 +238,9 @@ export async function abrirAbaOrganizador(aba) {
   state.estoqueAdmTipoAberto = null;
   state.estoqueAdmTipoCriar = null;
   state.estoqueAdmGrupoAberto = null;
+  state.estoqueAdmMovAberto = null;
+  state.estoqueAdmAnuladosAbertos = null;
+  state.estoqueAdmExcluirId = null;
   state.pretendenteAberto = null;
   fecharCarteirinha();
   state.acaoSocialIdeiaForm = null;

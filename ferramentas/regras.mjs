@@ -30,7 +30,7 @@ const { state: st } = await import(url('nucleo/estado.js'));
 const { hojeISO } = await import(url('nucleo/util.js'));
 const { quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm, filtrarMovimentosEstoqueAdm, relatorioEstoqueAdm, textoRelatorioEstoqueAdm,
   palpiteTipoMaterialAdm, tipoDoMaterialAdm, gruposEstoqueAdm, estoqueAtualAdm, textoEstoqueAtualAdm,
-  tiposMaterialAdm, textoTipoNovoAdm } = await import(url('dominio/estoque-adm.js'));
+  tiposMaterialAdm, textoTipoNovoAdm, painelEstoqueAdm } = await import(url('dominio/estoque-adm.js'));
 const { alertasHonrarias, dataDaHonraria, textoPrazoHonraria } = await import(url('dominio/honrarias.js'));
 
 let falhas = 0;
@@ -1939,6 +1939,25 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
     aparelhoCurto('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'),
     aparelhoCurto('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36 Edg/131.0'),
   ], ['Android 14 · Chrome', 'Android 13 · Samsung', 'iPhone iOS 17 · Safari', 'Windows · Edge']);
+}
+{
+  log('');
+  log('=== painel do Movimentar (Estoque ADM) ===');
+  const itens = [{ id:'a', quantidade:3 }, { id:'b', quantidade:0 }, { id:'c', quantidade:2 }];
+  const movs = [
+    { tipo:'entrada', quantidade:5, data:'2026-11-02' }, { tipo:'saida', quantidade:2, data:'2026-11-10' },
+    { tipo:'entrada', quantidade:4, data:'2026-09-15' }, { tipo:'saida', quantidade:2, data:'2026-09-20' },
+    { tipo:'entrada', quantidade:9, data:'2026-10-01', anulado:true }, { tipo:'entrada', quantidade:1, data:'2026-04-30' },
+  ];
+  const p = painelEstoqueAdm(itens, movs, '2026-11-17');
+  confere('saldo e materiais com saldo', [p.saldo, p.materiais], [5, 2]);
+  confere('entrou e saiu sem o anulado', [p.entrou, p.saiu], [10, 4]);
+  confere('os 6 meses até o atual', p.meses.map(m => m.mes), ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']);
+  confere('o mês a mês', p.meses.map(m => m.entradas + '/' + m.saidas), ['0/0', '0/0', '0/0', '4/2', '0/0', '5/2']);
+  confere('nada nos 6 meses: sem barras', painelEstoqueAdm(itens, [movs[5]], '2026-11-17').meses, []);
+  confere('virada de ano', painelEstoqueAdm([], [], '2027-02-10').meses, []);
+  confere('meses na virada', painelEstoqueAdm([], [{ tipo:'entrada', quantidade:1, data:'2026-12-01' }], '2027-02-10').meses.map(m => m.mes),
+    ['2026-09', '2026-10', '2026-11', '2026-12', '2027-01', '2027-02']);
 }
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
