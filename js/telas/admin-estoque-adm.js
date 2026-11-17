@@ -355,11 +355,13 @@ function colunaMovimentos(tipo) {
     <div class="card estoque-adm-coluna ${tipo}">
       <div class="estoque-adm-coluna-titulo">${entrada ? '🟢 Entradas' : '🔴 Saídas'}</div>
       <div class="estoque-adm-coluna-total">${total} un · ${validos.length} ${validos.length === 1 ? 'lançamento' : 'lançamentos'}</div>
-      ${validos.length ? validos.map(linhaMovimento).join('') : `<div class="estoque-adm-coluna-vazia">${entrada ? 'Nenhuma entrada ainda.' : 'Nenhuma saída ainda.'}</div>`}
-      ${anulados.length ? `
-        <button class="estoque-adm-anulados" data-action="estoque-adm-anulados" data-value="${tipo}" aria-expanded="${abertos}">🗂️ ${anulados.length} ${anulados.length === 1 ? 'anulado' : 'anulados'} <i>${abertos ? '▾' : '▸'}</i></button>
-        ${abertos ? anulados.map(linhaMovimento).join('') : ''}
-      ` : ''}
+      <div class="estoque-adm-coluna-lista" data-rolagem="estoque-adm-${tipo}">
+        ${validos.length ? validos.map(linhaMovimento).join('') : `<div class="estoque-adm-coluna-vazia">${entrada ? 'Nenhuma entrada ainda.' : 'Nenhuma saída ainda.'}</div>`}
+        ${anulados.length ? `
+          <button class="estoque-adm-anulados" data-action="estoque-adm-anulados" data-value="${tipo}" aria-expanded="${abertos}">🗂️ ${anulados.length} ${anulados.length === 1 ? 'anulado' : 'anulados'} <i>${abertos ? '▾' : '▸'}</i></button>
+          ${abertos ? anulados.map(linhaMovimento).join('') : ''}
+        ` : ''}
+      </div>
     </div>
   `;
 }

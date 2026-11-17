@@ -135,10 +135,27 @@ function contarAte(el) {
   requestAnimationFrame(passo);
 }
 
+// As listas com rolagem propria (data-rolagem="nome") voltariam pro topo a
+// cada toque, porque a tela e redesenhada inteira: guarda onde cada uma
+// estava e devolve depois de desenhar. Ex.: as colunas do Relatorio do
+// Estoque ADM.
+function guardarRolagens(app) {
+  const pos = {};
+  app.querySelectorAll('[data-rolagem]').forEach(el => { pos[el.dataset.rolagem] = el.scrollTop; });
+  return pos;
+}
+function devolverRolagens(app, pos) {
+  app.querySelectorAll('[data-rolagem]').forEach(el => {
+    if (pos[el.dataset.rolagem]) el.scrollTop = pos[el.dataset.rolagem];
+  });
+}
+
 function render() {
   const app = document.getElementById('app');
   marcarTrocaDeTela(app);
+  const rolagens = guardarRolagens(app);
   desenhar(app);
+  devolverRolagens(app, rolagens);
   animarNovidades(app);
   aplicarBusca(app);
   atualizarPastilhaSalvar();

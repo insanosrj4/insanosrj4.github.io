@@ -2604,7 +2604,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 /* O Relatorio em duas colunas: entradas (verde) e saidas (vermelha), lado
    a lado ate no celular - por isso as linhas sao finas e o nome quebra. */
 .estoque-adm-colunas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: start; }
-.estoque-adm-coluna { padding: 12px 10px 8px; margin: 0; border-top-width: 3px; }
+.estoque-adm-coluna {
+  padding: 12px 10px 8px; margin: 0; border-top-width: 3px;
+  /* As duas do mesmo tamanho; a lista rola por dentro (17/11/2026). */
+  height: 520px; display: flex; flex-direction: column;
+}
+.estoque-adm-coluna-lista {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  margin-right: -4px; padding-right: 4px;
+  scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+}
+.estoque-adm-coluna-lista::-webkit-scrollbar { width: 5px; }
+.estoque-adm-coluna-lista::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
+@media print { .estoque-adm-coluna { height: auto; } .estoque-adm-coluna-lista { overflow: visible; } }
 .estoque-adm-coluna.entrada { border-top-color: var(--status-confirmado); }
 .estoque-adm-coluna.saida { border-top-color: var(--status-infracional); }
 .estoque-adm-coluna-titulo { color: var(--white-strong); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
