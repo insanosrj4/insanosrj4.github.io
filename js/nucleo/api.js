@@ -2,6 +2,15 @@
 // e a credencial do organizador anexada nas acoes que gravam.
 
 import { state } from './estado.js';
+import { explicarFalha } from './falhas.js';
+import { mostrarErro } from './util.js';
+
+// O balao de erro de uma gravacao que falhou (ver nucleo/falhas.js). O erro
+// continua subindo: a tela que chamou segue tratando do jeito dela.
+function avisarFalha(action, params, erro) {
+  const texto = explicarFalha(action, params, erro);
+  if (texto && typeof document !== 'undefined') mostrarErro(texto.titulo, texto.motivo);
+}
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbyotQH6FypFdkC6D42WQHszNiuG29wqIBal2jBcwXdoCsT-Om_0gyDxFE02hxfwrZegxw/exec';
 
@@ -36,6 +45,8 @@ const ACOES_PROTEGIDAS = [
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
   'funcaoConfigSalvar',
   'pretendentes', 'pretendenteSituacao',
+  // O Registro (17/11/2026): so o Regional le.
+  'registro',
 ];
 
 // Anexa escopo+PIN quando a acao exige. Some do caminho nas demais, pra
@@ -80,15 +91,24 @@ export async function api(action, params) {
 
   let ultimoErro;
   for (let tentativa = 0; tentativa <= READ_RETRIES; tentativa++) {
+    let r;
     try {
-      const r = await jsonp(url, READ_TIMEOUT);
-      if (!r || !r.ok) throw new Error((r && r.erro) || 'A planilha recusou a operação');
-      return r;
+      r = await jsonp(url, READ_TIMEOUT);
     } catch (e) {
       ultimoErro = e;
       console.error('Falha em', action, 'tentativa', tentativa + 1, e);
+      continue;
     }
+    if (r && r.ok) return r;
+    ultimoErro = new Error((r && r.erro) || 'A planilha recusou a operação');
+    console.error('Recusado em', action, ultimoErro.message);
+    // A planilha respondeu que NAO: tentar de novo da a mesma resposta, so
+    // que 10 segundos depois. So a planilha ocupada (a trava) vale repetir.
+    if (!/ocupada/i.test(ultimoErro.message)) break;
   }
+  // Marca de erro da planilha: o reporte de erros de tela (fila/erros-de-tela.js) ignora.
+  if (ultimoErro) ultimoErro.daPlanilha = true;
+  avisarFalha(action, params, ultimoErro);
   throw ultimoErro;
 }
 
@@ -112,11 +132,17 @@ export async function apiPost(action, params) {
   // trata como requisicao simples e nao dispara preflight OPTIONS - o Apps
   // Script nao responde a OPTIONS, entao um POST com Content-Type
   // "application/json" explicito falharia por CORS.
-  const r = await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify(Object.assign({ action: action }, comCredencial(action, params)))
-  });
-  const data = await r.json();
-  if (!data || !data.ok) throw new Error((data && data.erro) || 'A planilha recusou a operação');
-  return data;
+  try {
+    const r = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify(Object.assign({ action: action }, comCredencial(action, params)))
+    });
+    const data = await r.json();
+    if (!data || !data.ok) throw new Error((data && data.erro) || 'A planilha recusou a operação');
+    return data;
+  } catch (e) {
+    if (e && typeof e === 'object') e.daPlanilha = true;
+    avisarFalha(action, params, e);
+    throw e;
+  }
 }

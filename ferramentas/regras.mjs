@@ -1909,6 +1909,37 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
   confere('o texto da ficha: quem indicou só aparece no Indicado', texto.some(l => l.startsWith('Quem te indicou')), false);
   confere('a planilha tem uma coluna por campo da ficha (mais as 5 de controle)', cab ? cab.length : 0, A.CAMPOS_FICHA.length + 5);
 }
+{
+  log('');
+  log('=== balão de erro (nucleo/falhas.js) ===');
+  const F = await import(url('nucleo/falhas.js'));
+  // Toda gravacao protegida do Code.gs tem a frase do balao; as leituras nao.
+  const code = fs.readFileSync(path.join(AQUI, '..', 'apps-script', 'Code.gs'), 'utf8');
+  const bloco = /var ACOES_PROTEGIDAS = \[([\s\S]*?)\];/.exec(code)[1].replace(/\/\/.*$/gm, '');
+  const protegidas = [...bloco.matchAll(/'([a-zA-Z]+)'/g)].map(m => m[1]);
+  const LEITURAS = ['responsavel', 'doacoes', 'caixinha', 'movimentos', 'estoqueAdm', 'acoesSociais', 'fichaMembro',
+    'fichasVarias', 'aniversarios', 'funcoesEspeciais', 'pretendentes', 'registro'];
+  const semFrase = protegidas.filter(a => !LEITURAS.includes(a)).concat(['presenca']).filter(a => !F.ehGravacaoComAviso(a));
+  confere('toda gravação tem a frase do balão', semFrase, []);
+  confere('leitura e ficha do pretendente não abrem balão', LEITURAS.concat(['dados', 'presencas', 'admissaoEnviar']).filter(a => F.ehGravacaoComAviso(a)), []);
+  confere('o caso do Amorim', F.explicarFalha('estoqueAdmMovimentar', { tipo: 'saida' }, new Error('Quantidade maior que o saldo disponivel')),
+    { titulo: 'Não foi possível registrar a saída.', motivo: 'A quantidade é maior que o saldo do material.' });
+  confere('sem internet não é culpa de quem tocou', F.explicarFalha('presenca', {}, new Error('Falha de conexao')).motivo,
+    'Sem conexão com a planilha. Confira a internet e tente de novo.');
+  confere('fetch caído (POST)', F.motivoLegivel('Failed to fetch'), 'Sem conexão com a planilha. Confira a internet e tente de novo.');
+  confere('o PIN que venceu', F.motivoLegivel('Sem permissao - entre no modo organizador de novo'), 'Seu acesso venceu. Saia e entre no Modo organizador de novo.');
+  confere('os acentos da planilha', F.motivoLegivel('Este integrante ja esta afastado'), 'Este integrante já está afastado.');
+  confere('acento no começo da frase', F.motivoLegivel('Divisao desconhecida'), 'Divisão desconhecida.');
+  confere('palavra que só parece (sobre, nação) fica', F.motivoLegivel('Escreva sobre o padrao'), 'Escreva sobre o padrão.');
+  confere('leitura não tem balão', F.explicarFalha('estoqueAdm', {}, new Error('x')), null);
+  const { aparelhoCurto } = await import(url('fila/erros-de-tela.js'));
+  confere('o aparelho, curto', [
+    aparelhoCurto('Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36'),
+    aparelhoCurto('Mozilla/5.0 (Linux; Android 13; SAMSUNG SM-A325M) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 Chrome/122.0 Mobile Safari/537.36'),
+    aparelhoCurto('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'),
+    aparelhoCurto('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36 Edg/131.0'),
+  ], ['Android 14 · Chrome', 'Android 13 · Samsung', 'iPhone iOS 17 · Safari', 'Windows · Edge']);
+}
 log(falhas === 0 ? 'TUDO OK' : `${falhas} FALHA(S) — veja acima`);
 fs.writeFileSync(SAIDA, linhas.join('\n'), 'utf8');
 process.exit(falhas === 0 ? 0 : 1);

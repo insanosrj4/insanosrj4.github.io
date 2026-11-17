@@ -172,7 +172,7 @@ export const acoes = {
       p.atualizadoEm = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '');
       mostrarAviso(situacao === SITUACAO_ANALISE ? '🔎 Marcado Em análise' : '🆕 Voltou pra Novo');
     } catch (err) {
-      alert(`Não deu pra salvar: ${err.message}`);
+      // O balao do api() ja explica o erro (nucleo/falhas.js).
     }
     state.pretendenteSalvando = false;
     render();

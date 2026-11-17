@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-17-estoque-adm-tipos';
+var VERSAO = '2026-11-17-registro';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -305,7 +305,7 @@ function doGet(e) {
   var p = e.parameter || {};
   var resposta;
   try {
-    resposta = executar(p.action || 'dados', p);
+    resposta = executarERegistrar(p.action || 'dados', p);
   } catch (erro) {
     resposta = { ok: false, erro: String(erro && erro.message || erro) };
   }
@@ -322,7 +322,7 @@ function doPost(e) {
   }
   var resposta;
   try {
-    resposta = executar(dados.action || '', dados);
+    resposta = executarERegistrar(dados.action || '', dados);
   } catch (erro) {
     resposta = { ok: false, erro: String(erro && erro.message || erro) };
   }
@@ -378,7 +378,9 @@ var ACOES_PROTEGIDAS = [
   'funcaoConfigSalvar',
   // As fichas de admissao: CPF, RG e endereco. Enviar (admissaoEnviar) e
   // publico; ler e mexer, so com o PIN da divisao do link.
-  'pretendentes', 'pretendenteSituacao'
+  'pretendentes', 'pretendenteSituacao',
+  // O Registro: so o Regional le.
+  'registro'
 ];
 
 function executar(action, p) {
@@ -481,6 +483,9 @@ function executar(action, p) {
   // A ficha do pretendente: grava SEM PIN, de proposito - quem preenche e
   // alguem de fora do clube, pelo link da divisao. Por isso fica fora de
   // ACOES_PROTEGIDAS (como a "presenca") e confere tudo aqui dentro.
+  if (action === 'registro') return lerRegistro(p);
+  // Os erros da tela do celular: publico, como a presenca (ver receberErroDoApp).
+  if (action === 'erroApp') return receberErroDoApp(p);
   if (action === 'admissaoEnviar') return comTrava(function () { return receberFichaAdmissao(p); });
   if (action === 'pretendentes') return lerPretendentes(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'pretendenteSituacao') return comTrava(function () { return mudarSituacaoPretendente(p); });
@@ -505,7 +510,7 @@ function executar(action, p) {
 var ACOES_SO_DO_REGIONAL = ['insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
   'insightMembroRemover', 'insightMembroReincluir', 'relatorio',
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
-  'funcaoConfigSalvar'];
+  'funcaoConfigSalvar', 'registro'];
 
 function guardaDaDivisao(action, p) {
   var pin = String(p.pin || '');
@@ -543,6 +548,277 @@ function comTrava(fn) {
   } finally {
     trava.releaseLock();
   }
+}
+
+// ---------- REGISTRO (o diario de tudo que grava) ----------
+// Pedido do clube em 17/11/2026, depois de um erro que so foi achado porque
+// um integrante contou: cada gravacao feita pelo app vira uma linha na aba
+// Registro - quando, o que, por qual PIN, o detalhe e se deu certo (ou a
+// mensagem exata do erro). Mais os erros que acontecem na tela do celular
+// (erroApp). Quem le e so o Regional (acao 'registro').
+//
+// O que NUNCA entra: PIN, CPF, RG, telefone, endereco, foto, motivo de
+// afastamento e o texto da carteirinha. O detalhe e montado campo a campo
+// (detalheDoRegistro), nunca copiando o pedido inteiro.
+//
+// O app nao sabe QUEM esta mexendo - so por qual PIN a pessoa entrou. Na
+// presenca, o nome e o do integrante que tocou no proprio nome.
+//
+// Guarda 90 dias: o gatilho da madrugada apaga o mais antigo
+// (limparRegistroAntigo).
+var ABA_REGISTRO = 'Registro';
+var CAB_REGISTRO = ['Quando', 'Acao', 'Divisao', 'Detalhe', 'Resultado', 'Erro', 'Aparelho'];
+var DIAS_REGISTRO = 90;
+var SEM_PIN_REGISTRO = 'Sem PIN';
+// O freio dos erros de tela: um celular com defeito, ou alguem chamando a
+// URL a mao, nao enche a aba. Por dia, somando todo mundo.
+var ERROS_APP_POR_DIA = 300;
+
+// As acoes que entram no Registro e o nome delas na aba. Leitura nao entra.
+var ROTULOS_REGISTRO = {
+  presenca: 'Presença', eventoSalvar: 'Evento salvo', eventoRemover: 'Evento apagado',
+  membroSalvar: 'Integrante salvo', membroRemover: 'Integrante removido',
+  criarEventoDeTexto: 'Convocação colada', criarEventosDeCalendario: 'Eventos do calendário',
+  relatorio: 'Relatório na planilha',
+  insightSalvar: 'Insight: rodada', insightRodadaAjustar: 'Insight: rodada corrigida', insightRodadaRemover: 'Insight: rodada apagada',
+  insightMembroRemover: 'Insight: tirado', insightMembroReincluir: 'Insight: de volta',
+  responsavelSalvar: 'Responsável da chamada', textoChamadaSalvar: 'Texto da chamada',
+  doacoesSalvar: 'Doações do evento', caixinhaSalvar: 'Caixinha: mês', caixinhaRemover: 'Caixinha: mês apagado',
+  caixinhaLancamentoSalvar: 'Caixinha: lançamento', caixinhaLancamentoRemover: 'Caixinha: lançamento apagado',
+  membrosEntradaSalvar: 'Datas de entrada',
+  estoqueDoacoesMovimentar: 'Estoque Doações', estoqueDoacoesAnular: 'Estoque Doações: anulado',
+  membroMovimentar: 'Entrada/Saída', membroConfirmarGrau: 'Grau confirmado',
+  estoqueAdmMovimentar: 'Estoque ADM', estoqueAdmAnular: 'Estoque ADM: anulado', estoqueAdmTipo: 'Estoque ADM: tipo',
+  acaoSocialIdeiaSalvar: 'Ações Sociais: ideia', acaoSocialIdeiaRemover: 'Ações Sociais: ideia apagada',
+  acaoSocialAgendaSalvar: 'Ações Sociais: agenda', acaoSocialAgendaRemover: 'Ações Sociais: tirada da agenda',
+  acaoSocialTextoSalvar: 'Ações Sociais: texto', acaoSocialTextoRemover: 'Ações Sociais: texto apagado',
+  acoesSociaisImportar: 'Ações Sociais: rascunho',
+  fichaMembroSalvar: 'Carteirinha salva',
+  funcaoEventoSalvar: 'Funções: evento', funcaoEventoStatus: 'Funções: situação do evento', funcaoEventoRemover: 'Funções: evento apagado',
+  funcaoPresencasSalvar: 'Funções: presenças', funcaoConfigSalvar: 'Funções: ajuste',
+  pretendenteSituacao: 'Pretendente: situação', admissaoEnviar: 'Ficha de admissão'
+};
+
+// O que entra no lugar de executar() nas duas portas (doGet e doPost): roda
+// a acao e, se ela grava, anota no Registro. Anotar nunca derruba a acao.
+function executarERegistrar(action, p) {
+  var registra = ROTULOS_REGISTRO.hasOwnProperty(action);
+  var antes = null;
+  if (registra) { try { antes = contextoAntesDoRegistro(action, p); } catch (e) { antes = null; } }
+  var resposta;
+  try {
+    resposta = executar(action, p);
+  } catch (erro) {
+    resposta = { ok: false, erro: String(erro && erro.message || erro) };
+  }
+  if (registra) {
+    try { anotarNoRegistro(action, p, resposta, antes); } catch (e) { Logger.log('Registro falhou: ' + e); }
+  }
+  return resposta;
+}
+
+function quandoAgoraRegistro() { return Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd HH:mm:ss'); }
+
+// Uma linha no fim da aba. appendRow e seguro com duas gravacoes ao mesmo
+// tempo. O apostrofo deixa tudo como texto: a data nao vira Date e um
+// detalhe que comece com "=" nao vira formula (o apostrofo nao aparece).
+function gravarNoRegistro(valores) {
+  var s = aba(ABA_REGISTRO, CAB_REGISTRO);
+  s.appendRow(valores.map(function (v) { return "'" + String(v === undefined || v === null ? '' : v).slice(0, 500); }));
+}
+
+// Por qual PIN a pessoa entrou. Presenca e ficha nao tem PIN.
+function quemNoRegistro(action, p) {
+  if (action === 'admissaoEnviar') return SEM_PIN_REGISTRO + ' · link ' + (ESCOPOS_NOME[String(p.divisao || '')] || '?');
+  if (ACOES_PROTEGIDAS.indexOf(action) === -1) return SEM_PIN_REGISTRO;
+  return ESCOPOS_NOME[String(p.escopo || '')] || SEM_PIN_REGISTRO;
+}
+
+function anotarNoRegistro(action, p, r, antes) {
+  r = r || {};
+  gravarNoRegistro([quandoAgoraRegistro(), ROTULOS_REGISTRO[action], quemNoRegistro(action, p),
+    detalheDoRegistro(action, p, r, antes || {}), r.ok ? 'OK' : 'Erro', r.ok ? '' : String(r.erro || 'Erro'), '']);
+}
+
+// O que precisa ser lido ANTES da acao, porque depois ela apaga: o nome do
+// evento removido, do integrante desligado, do material anulado...
+function contextoAntesDoRegistro(action, p) {
+  var id = String(p.id || '');
+  if (action === 'eventoRemover') return { nome: nomeDe(ABA_EVENTOS, CAB_EVENTOS, id) };
+  if (action === 'membroRemover' || action === 'insightMembroRemover' || action === 'insightMembroReincluir') return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, id) };
+  if (action === 'membroMovimentar' || action === 'membroConfirmarGrau' || action === 'fichaMembroSalvar') {
+    return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, String(p.membroId || '')) };
+  }
+  if (action === 'estoqueAdmMovimentar' || action === 'estoqueAdmTipo') {
+    var mid = String(action === 'estoqueAdmTipo' ? id : (p.materialId || ''));
+    var c = mid ? acharLinha(aba(ABA_ESTOQUE_ADM_ITENS, CAB_ESTOQUE_ADM_ITENS), function (l) { return String(l[0]) === mid; }) : null;
+    var destino = String(p.destinoTipo) === 'membro' ? nomeDe(ABA_MEMBROS, CAB_MEMBROS, String(p.destinoId || '')) : '';
+    return { material: c ? String(c.valores[1] || '') : '', destino: destino };
+  }
+  if (action === 'estoqueAdmAnular') {
+    var m = acharLinha(aba(ABA_ESTOQUE_ADM_MOV, CAB_ESTOQUE_ADM_MOV), function (l) { return String(l[0]) === id; });
+    return m ? { material: String(m.valores[4] || ''), quantidade: String(m.valores[5] || ''), tipo: String(m.valores[2] || '') } : {};
+  }
+  if (action === 'estoqueDoacoesAnular') {
+    var d = acharLinha(aba(ABA_ESTOQUE_DOACOES_MOV, CAB_ESTOQUE_DOACOES_MOV), function (l) { return String(l[0]) === id; });
+    return d ? { material: String(d.valores[5] || ''), quantidade: String(d.valores[7] || ''), medida: String(d.valores[6] || ''), divisao: String(d.valores[1] || '') } : {};
+  }
+  if (action === 'acaoSocialIdeiaRemover') return linhaCurtaDoRegistro(ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS, id, 3);
+  if (action === 'acaoSocialAgendaRemover') return linhaCurtaDoRegistro(ABA_ACOES_SOCIAIS_AGENDA, CAB_ACOES_SOCIAIS_AGENDA, id, 5);
+  if (action === 'acaoSocialTextoRemover') return linhaCurtaDoRegistro(ABA_ACOES_SOCIAIS_TEXTOS, CAB_ACOES_SOCIAIS_TEXTOS, id, 2);
+  if (action === 'funcaoEventoStatus' || action === 'funcaoEventoRemover' || action === 'funcaoPresencasSalvar') {
+    var eid = String(p.id || p.eventoId || '');
+    var f = acharLinha(aba(ABA_FUNCOES_EVENTOS, CAB_FUNCOES_EVENTOS), function (l) { return String(l[0]) === eid; });
+    return f ? { nome: String(f.valores[2] || ''), funcao: String(f.valores[1] || '') } : {};
+  }
+  if (action === 'doacoesSalvar') return { nome: nomeDe(ABA_EVENTOS, CAB_EVENTOS, String(p.eventoId || '')) };
+  if (action === 'funcaoConfigSalvar' && p.valor) return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, String(p.valor)) };
+  return null;
+}
+
+// { nome, divisao } da linha `id` de uma aba das Acoes Sociais.
+function linhaCurtaDoRegistro(nomeAba, cab, id, colNome) {
+  var a = acharLinha(aba(nomeAba, cab), function (l) { return String(l[0]) === id; });
+  return a ? { nome: String(a.valores[colNome] || ''), divisao: String(a.valores[1] || '') } : {};
+}
+
+function quantosRegistro(v) {
+  if (Array.isArray(v)) return v.length;
+  var lista = parseOuVazio(v, null);
+  if (Array.isArray(lista)) return lista.length;
+  return String(v || '').split(',').filter(function (x) { return x; }).length;
+}
+
+// O detalhe legivel de cada acao. So campos escolhidos a dedo - nada de
+// dado pessoal (ver o topo desta secao).
+function detalheDoRegistro(a, p, r, antes) {
+  var div = function (k) { return ESCOPOS_NOME[String(k || '')] || String(k || ''); };
+  var dia = function (iso) { return /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? formatarDataBR(iso) : ''; };
+  var mes = function (m) { var t = String(m || ''); return /^\d{4}-\d{2}$/.test(t) ? t.slice(5) + '/' + t.slice(0, 4) : t; };
+  var st = function (k) { return STATUS_ROTULO[String(k || '')] || String(k || ''); };
+  var oQue = function (t) { return String(t) === 'saida' ? 'Saída' : 'Entrada'; };
+  var funcao = function (f) { return f === 'batedor' ? 'Batedores' : f === 'caveira' ? 'Caveiras' : String(f || ''); };
+  var x;
+  switch (a) {
+    case 'presenca':
+      x = [(r.membro || p.membroId) + ' → ' + st(p.status || 'aguardando'), r.evento || p.eventoId]; break;
+    case 'eventoSalvar':
+      x = [p.nome, dia(p.data), div(p.categoria), p.id ? '' : 'novo', String(p.status) === 'encerrado' ? 'encerrado' : '',
+        p.membroIds !== undefined ? quantosRegistro(p.membroIds) + ' convocados' : '']; break;
+    case 'eventoRemover': x = [antes.nome || p.id]; break;
+    case 'membroSalvar':
+      x = [p.nome, p.grau ? 'grau ' + p.grau : '', p.divisao, p.id ? '' : 'novo',
+        r.nivel === 'sobe' ? 'subiu pro Regional' : r.nivel === 'desce' ? 'desceu pra ' + div(r.divisao) : '']; break;
+    case 'membroRemover': x = [antes.nome || p.id]; break;
+    case 'criarEventoDeTexto': x = [p.nome, dia(p.data), div(p.categoria), quantosRegistro(p.membros) + ' na lista']; break;
+    case 'criarEventosDeCalendario': x = [div(p.categoria), quantosRegistro(p.eventos) + ' eventos']; break;
+    case 'relatorio': x = ['abas da planilha refeitas']; break;
+    case 'insightSalvar': x = [dia(p.data) || 'hoje', r.ok ? r.totalSim + ' de ' + r.totalElegiveis + ' fizeram' : '']; break;
+    case 'insightRodadaAjustar': x = ['rodada ' + p.id, r.ok ? r.totalSim + ' de ' + r.totalElegiveis + ' fizeram' : '']; break;
+    case 'insightRodadaRemover': x = ['rodada ' + p.id]; break;
+    case 'insightMembroRemover': case 'insightMembroReincluir': x = [antes.nome || p.id]; break;
+    case 'responsavelSalvar': x = [div(p.categoria), p.nome, p.cargo]; break;
+    case 'textoChamadaSalvar': x = [p.chave === 'regras' ? 'Regras do clube' : p.chave === 'atencao' ? 'Atenção' : p.chave]; break;
+    case 'doacoesSalvar':
+      x = [antes.nome || p.eventoId, r.ok ? r.doadores + ' doadores · ' + r.totalKg + ' kg' : '', r.ok && r.externas ? r.externas + ' de fora' : '']; break;
+    case 'caixinhaSalvar': x = [div(p.divisao), mes(p.mes), r.ok ? r.pagaram + ' de ' + r.total + ' pagaram' : '']; break;
+    case 'caixinhaRemover': x = [div(p.divisao), mes(p.mes)]; break;
+    case 'caixinhaLancamentoSalvar':
+      x = [div(p.divisao), p.tipo === 'saldoInicial' ? 'Saldo inicial' : oQue(p.tipo), p.valor !== undefined ? 'R$ ' + p.valor : '', p.categoria, dia(p.data), p.id ? 'corrigido' : '']; break;
+    case 'caixinhaLancamentoRemover': x = [div(p.divisao), 'lançamento ' + p.id]; break;
+    case 'membrosEntradaSalvar': x = [r.ok ? r.salvos + ' datas' : '']; break;
+    case 'estoqueDoacoesMovimentar':
+      x = [div(p.divisao), oQue(p.tipo), String(p.quantidade || '') + ' ' + String(p.medida || ''), p.itemNome || p.itemId, p.destino]; break;
+    case 'estoqueDoacoesAnular': x = [div(antes.divisao || p.divisao), antes.material, antes.quantidade ? antes.quantidade + ' ' + antes.medida : '', 'lançamento ' + p.id]; break;
+    case 'membroMovimentar':
+      x = [antes.nome || p.membroId, p.tipo,
+        p.destino ? 'para ' + div(p.destino) : p.regionalDestino ? 'para ' + p.regionalDestino + ' · ' + p.divisaoDestino : '', dia(p.data)]; break;
+    case 'membroConfirmarGrau': x = [antes.nome || p.membroId, 'grau ' + (p.grau || '-')]; break;
+    case 'estoqueAdmMovimentar':
+      x = [oQue(p.tipo), String(p.quantidade || '') + ' un', p.materialNome || antes.material || p.materialId,
+        String(p.tipo) === 'saida' ? 'para ' + (p.destinoTipo === 'divisao' ? div(p.destinoId) : (antes.destino || p.destinoId)) : '', dia(p.data)]; break;
+    case 'estoqueAdmAnular': x = [antes.tipo ? oQue(antes.tipo) : '', antes.quantidade ? antes.quantidade + ' un' : '', antes.material || 'lançamento ' + p.id]; break;
+    case 'estoqueAdmTipo': x = [antes.material || p.id, '→ ' + p.tipo]; break;
+    case 'acaoSocialIdeiaSalvar': x = [div(p.divisao), p.nome]; break;
+    case 'acaoSocialAgendaSalvar': x = [div(p.divisao), mes(p.mes), p.acao || '', p.situacao]; break;
+    case 'acaoSocialTextoSalvar': x = [div(p.divisao), p.titulo]; break;
+    case 'acaoSocialIdeiaRemover': case 'acaoSocialAgendaRemover': case 'acaoSocialTextoRemover':
+      x = [div(antes.divisao || p.divisao), antes.nome || p.id]; break;
+    case 'acoesSociaisImportar': x = [div(p.divisao)]; break;
+    case 'fichaMembroSalvar': x = [antes.nome || p.membroId]; break;
+    case 'funcaoEventoSalvar': x = [funcao(p.funcao), p.nome, dia(p.data), p.id ? '' : 'novo']; break;
+    case 'funcaoEventoStatus': x = [funcao(antes.funcao), antes.nome || p.id, p.status === 'encerrado' ? 'encerrado' : 'reaberto']; break;
+    case 'funcaoEventoRemover': x = [funcao(antes.funcao), antes.nome || p.id]; break;
+    case 'funcaoPresencasSalvar':
+      var marc = typeof p.marcacoes === 'object' && p.marcacoes ? p.marcacoes : parseOuVazio(p.marcacoes, {});
+      x = [funcao(antes.funcao), antes.nome || p.eventoId, Object.keys(marc || {}).length + ' marcados']; break;
+    case 'funcaoConfigSalvar': x = [p.chave === 'caveira01' ? 'Caveira 01' : p.chave, antes.nome || (p.valor ? p.valor : 'ninguém')]; break;
+    case 'pretendenteSituacao': x = ['→ ' + p.situacao]; break;
+    case 'admissaoEnviar': x = [div(p.divisao)]; break;
+    default: x = [p.id];
+  }
+  return x.filter(function (v) { return v !== undefined && v !== null && String(v).trim() !== ''; }).join(' · ');
+}
+
+// Os erros que acontecem na TELA (um botao que quebra, uma tela que nao
+// desenha) - o app manda pelo sendBeacon. Publico (o erro pode acontecer
+// antes do PIN), entao tudo e cortado e tem o freio por dia.
+function receberErroDoApp(p) {
+  var cache = CacheService.getScriptCache();
+  var chave = 'erroApp-' + Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+  var n = Number(cache.get(chave) || 0);
+  if (n >= ERROS_APP_POR_DIA) return { ok: true };
+  cache.put(chave, String(n + 1), 21600);
+  var tela = linhaCurta(p.tela, 60);
+  var mensagem = linhaCurta(p.mensagem, 300);
+  if (!mensagem) return { ok: true };
+  var escopo = ESCOPOS_NOME[String(p.escopo || '')] || SEM_PIN_REGISTRO;
+  gravarNoRegistro([quandoAgoraRegistro(), 'Erro na tela', escopo, tela ? 'tela: ' + tela : '', 'Erro', mensagem, linhaCurta(p.aparelho, 80)]);
+  return { ok: true };
+}
+
+// O Registro pro app, do mais recente pro mais antigo. Filtros: soErros,
+// divisao (o comeco do texto da coluna Divisao - 'Sem PIN' pega a ficha
+// tambem) e antesDe (o 'Quando' da ultima linha ja mostrada, pro "Ver
+// mais"). Ate `limite` linhas por vez.
+function lerRegistro(p) {
+  var s = planilha().getSheetByName(ABA_REGISTRO);
+  if (!s) return { ok: true, linhas: [], temMais: false };
+  var soErros = ehVerdadeiro(p.soErros);
+  var divisao = String(p.divisao || '');
+  var antesDe = String(p.antesDe || '');
+  var limite = Math.min(Math.max(Number(p.limite) || 150, 1), 500);
+  var dados = linhas(s);
+  var saida = [];
+  var temMais = false;
+  for (var i = dados.length - 1; i >= 0; i--) {
+    var l = dados[i];
+    var quando = String(l[0] || '');
+    if (!quando) continue;
+    if (antesDe && quando >= antesDe) continue;
+    var erro = String(l[4]) === 'Erro';
+    if (soErros && !erro) continue;
+    if (divisao && String(l[2] || '').indexOf(divisao) !== 0) continue;
+    if (saida.length >= limite) { temMais = true; break; }
+    saida.push({ quando: quando, acao: String(l[1] || ''), divisao: String(l[2] || ''), detalhe: String(l[3] || ''),
+      ok: !erro, erro: String(l[5] || ''), aparelho: String(l[6] || '') });
+  }
+  return { ok: true, linhas: saida, temMais: temMais };
+}
+
+// Chamada pelo gatilho da madrugada. As linhas estao em ordem de tempo
+// (sempre no fim), entao as velhas sao um bloco no topo - um deleteRows so.
+function limparRegistroAntigo() {
+  var s = planilha().getSheetByName(ABA_REGISTRO);
+  if (!s || s.getLastRow() < 2) return 0;
+  var d = new Date();
+  d.setDate(d.getDate() - DIAS_REGISTRO);
+  var corte = Utilities.formatDate(d, fuso(), 'yyyy-MM-dd');
+  var quandos = s.getRange(2, 1, s.getLastRow() - 1, 1).getValues();
+  var velhas = 0;
+  while (velhas < quandos.length && String(quandos[velhas][0] || '') < corte) velhas++;
+  if (velhas) s.deleteRows(2, velhas);
+  return velhas;
 }
 
 // ---------- PIN ----------
@@ -1418,7 +1694,8 @@ function salvarPresenca(p) {
 
   if (achado) s.getRange(achado.indice, 1, 1, linha.length).setValues([linha]);
   else s.appendRow(linha);
-  return { ok: true };
+  // Os nomes vao junto so pro Registro (o app nao usa).
+  return { ok: true, evento: nomeEvento, membro: nomeMembro };
 }
 
 // Os parametros chegam como texto quando vem pela URL.
@@ -1776,6 +2053,13 @@ function migrarAguardandoDeEventosJaEncerrados() {
 // dia inteiro, porque quem esta la ainda pode confirmar pelo celular. E
 // exatamente quando o "e hoje" do mural de avisos deixa de ser verdade.
 function encerrarEventosVencidos() {
+  var r = encerrarVencidosComTrava();
+  // Na mesma passada da madrugada: o Registro guarda so 90 dias.
+  try { Logger.log('Registro: ' + limparRegistroAntigo() + ' linha(s) antiga(s) apagada(s)'); } catch (e) { Logger.log('Limpar registro falhou: ' + e); }
+  return r;
+}
+
+function encerrarVencidosComTrava() {
   return comTrava(function () {
     var s = aba(ABA_EVENTOS, CAB_EVENTOS);
     var dados = linhas(s);

@@ -165,7 +165,7 @@ Object.assign(state, {
 
 // ---------- 3. desenha tudo ----------------------------------------------
 const T = {};
-for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin','convocacao','menu-organizador','relatorio-individual']) {
+for (const m of ['home','evento','rank','rank-insights','calendario','pin','relatorios','admin','convocacao','menu-organizador','relatorio-individual','registro']) {
   Object.assign(T, await import(url('telas/' + m + '.js')));
 }
 const casos = [];
@@ -282,6 +282,38 @@ add('organizador / obrigatoriedades (tudo em dia)', { isAdmin:true, adminEscopo:
   events:['barra', 'oeste', 'recreio', 'curicica', 'taquara', 'gardenia'].flatMap(c =>
     ['Reunião', 'Pub', 'Bate e Volta', 'Ação Social'].map(t => evMes(c, t))) }, T.renderMenuOrganizador);
 add('organizador / menu (barra)',    { isAdmin:true, adminEscopo:'barra' }, T.renderMenuOrganizador);
+// 📜 Registros: o botao so no Regional, e a tela da lista.
+add('organizador / menu (regional) tem o 📜', { isAdmin:true, adminEscopo:'regional' }, (app) => {
+  T.renderMenuOrganizador(app);
+  if (!app.innerHTML.includes('abrir-registro')) throw new Error('faltou o botao Registros');
+});
+add('organizador / menu (barra) sem o 📜', { isAdmin:true, adminEscopo:'barra' }, (app) => {
+  T.renderMenuOrganizador(app);
+  if (app.innerHTML.includes('abrir-registro')) throw new Error('o botao Registros apareceu fora do Regional');
+});
+const hojeReg = new Date();
+const diaReg = (n) => { const d = new Date(hojeReg); d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const linhasReg = [
+  { quando:diaReg(0) + ' 14:32:05', acao:'Estoque ADM', divisao:'Regional RJ4', detalhe:'Saída · 5 un · 1º Colete Amorim · para Amorim', ok:false, erro:'Quantidade maior que o saldo disponivel', aparelho:'' },
+  { quando:diaReg(0) + ' 14:30:00', acao:'Presença', divisao:'Sem PIN', detalhe:'Costa → Confirmado · Pub', ok:true, erro:'', aparelho:'' },
+  { quando:diaReg(1) + ' 09:00:00', acao:'Erro na tela', divisao:'Barra - RJ4', detalhe:'tela: admin · membros', ok:false, erro:'Cannot read properties of undefined', aparelho:'Android 14 · Chrome' },
+  { quando:diaReg(9) + ' 20:10:00', acao:'Evento salvo', divisao:'Barra - RJ4', detalhe:'Pub · 20/11/2026 · Barra - RJ4 · novo', ok:true, erro:'', aparelho:'' },
+];
+const rgb = { isAdmin:true, adminEscopo:'regional', view:'registro' };
+add('registros / carregando', { ...rgb, registroCarregando:true }, T.renderRegistro);
+add('registros / lista', { ...rgb, registroLinhas:linhasReg, registroTemMais:true }, (app) => {
+  T.renderRegistro(app);
+  for (const t of ['Hoje · ', 'Ontem · ', 'A quantidade é maior que o saldo do material.', 'Android 14', 'Ver mais antigos']) {
+    if (!app.innerHTML.includes(t)) throw new Error('faltou na lista: ' + t);
+  }
+});
+add('registros / só erros (Barra)', { ...rgb, registroLinhas:linhasReg.filter(l => !l.ok), registroSoErros:true, registroDivisao:'Barra - RJ4' }, T.renderRegistro);
+add('registros / vazio', { ...rgb, registroLinhas:[] }, T.renderRegistro);
+add('registros / vazio com filtro', { ...rgb, registroLinhas:[], registroSoErros:true }, T.renderRegistro);
+add('registros / erro ao ler', { ...rgb, registroErro:'Sem permissao - entre no modo organizador de novo' }, T.renderRegistro);
+add('registros / carregando mais', { ...rgb, registroLinhas:linhasReg, registroTemMais:true, registroMais:true }, T.renderRegistro);
+
 add('organizador / menu (oeste)',    { isAdmin:true, adminEscopo:'oeste' }, T.renderMenuOrganizador);
 add('organizador / área ADM (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'adm' }, T.renderMenuOrganizador);
 add('organizador / área Operacional (regional)', { isAdmin:true, adminEscopo:'regional', organizadorArea:'operacional' }, T.renderMenuOrganizador);
@@ -849,13 +881,22 @@ add('estoque ADM / formulario entrada',   { ...eadm, adminTab:'estoque-adm-movim
   tipo:'entrada', materialId:'novo', materialNome:'Colete', quantidade:'5', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'Doação' } }, T.renderAdmin);
 add('estoque ADM / formulario saída',     { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
   tipo:'saida', materialId:'mat1', materialNome:'', quantidade:'2', data:'19/10/2026', destinoTipo:'membro', destinoId:'m1', observacao:'' } }, T.renderAdmin);
+// O relato do colete do Amorim (17/11/2026): a saida nascia com um material
+// zerado escolhido (o 1º da lista inteira), que a lista nem mostra - o
+// celular exibia outro, e a planilha recusava por falta de saldo.
+add('estoque ADM / saída com zerado escolhido', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
+  tipo:'saida', materialId:'mat2', materialNome:'', quantidade:'1', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'' } }, (app) => {
+  T.renderAdmin(app);
+  if (state.estoqueAdmForm.materialId !== 'mat1') throw new Error('a saida ficou com o zerado ' + state.estoqueAdmForm.materialId);
+});
 add('estoque ADM / estoque atual',        { ...eadm, adminTab:'estoque-adm-estoque' }, T.renderAdmin);
-add('estoque ADM / estoque com tipo aberto', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmTipoAberto:'mat3' }, T.renderAdmin);
+add('estoque ADM / estoque com Coletes aberto', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmGrupoAberto:'coletes' }, T.renderAdmin);
+add('estoque ADM / estoque com tipo aberto', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmGrupoAberto:'coletes', estoqueAdmTipoAberto:'mat4' }, T.renderAdmin);
 add('estoque ADM / estoque (gerar aberto)', { ...eadm, adminTab:'estoque-adm-estoque', gerarRelatorioAberto:'estoque-adm-atual' }, T.renderAdmin);
 add('estoque ADM / estoque todo com tipo', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmDados:{ itens:[
   { id:'b1', nome:'Bandeira RJ4', tipo:'', quantidade:2 }, { id:'h1', nome:'Medalha 3 anos', tipo:'', quantidade:0 }], movimentos:[] } }, T.renderAdmin);
 add('estoque ADM / novo tipo (perguntando)', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmTipoCriar:{ id:'mat1', nome:'Bonés' } }, T.renderAdmin);
-add('estoque ADM / novo tipo (linha aberta)', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmTipoAberto:'mat6', estoqueAdmTipoCriar:{ id:'mat6', nome:'' } }, T.renderAdmin);
+add('estoque ADM / novo tipo (linha aberta)', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmGrupoAberto:'Camisas', estoqueAdmTipoAberto:'mat6', estoqueAdmTipoCriar:{ id:'mat6', nome:'' } }, T.renderAdmin);
 add('estoque ADM / novo tipo no cadastro', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmTipoCriar:{ id:'material-novo', nome:'Adesivos' }, estoqueAdmForm:{
   tipo:'entrada', materialId:'novo', materialNome:'Adesivo RJ4', materialTipo:'', quantidade:'1', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'' } }, T.renderAdmin);
 add('estoque ADM / cadastro com tipo criado escolhido', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
@@ -1015,7 +1056,8 @@ const LIMPO = {
   grauMembroId:null, grauEscolhido:null, cargoEscolhido:null, grauSalvando:false, grauErro:null, preencherEntradasIds:null, entradasRascunho:{}, entradasSalvando:false, entradasMsg:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
   estoqueAdmDados:null, estoqueAdmCarregando:false, estoqueAdmErro:null, estoqueAdmForm:null,
-  estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null, estoqueAdmTipoAberto:null, estoqueAdmTipoCriar:null,
+  estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null, estoqueAdmTipoAberto:null, estoqueAdmTipoCriar:null, estoqueAdmGrupoAberto:null,
+  registroLinhas:null, registroCarregando:false, registroErro:null, registroSoErros:false, registroDivisao:'', registroTemMais:false, registroMais:false,
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,

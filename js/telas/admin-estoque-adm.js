@@ -20,9 +20,11 @@ const NOVO_MATERIAL = 'material-novo';
 
 function novoForm(tipo) {
   const itens = dados().itens || [];
+  // Na saida, so os que tem saldo: sao os unicos que a lista mostra.
+  const lista = tipo === 'saida' ? itens.filter(x => Number(x.quantidade) > 0) : itens;
   return {
     tipo,
-    materialId: tipo === 'entrada' && !itens.length ? 'novo' : (itens[0] && itens[0].id) || '',
+    materialId: tipo === 'entrada' && !itens.length ? 'novo' : (lista[0] && lista[0].id) || '',
     // materialTipo: o tipo escolhido no cadastro de material novo. Vazio =
     // ainda vale o palpite pelo nome (palpiteTipoMaterialAdm).
     materialNome: '', materialTipo: '', quantidade: '', data: formatDataBR(hojeISO()),
@@ -51,6 +53,10 @@ function seletorMaterial(f) {
   const entrada = f.tipo === 'entrada';
   const disponiveis = dados().itens.filter(x => Number(x.quantidade) > 0);
   if (!entrada && !disponiveis.length) return '<div class="empty">Não há material disponível para retirar.</div>';
+  // O escolhido tem de ser um dos que aparecem na lista. Senao o celular
+  // mostra o primeiro da lista, mas o app manda outro (um zerado) e a
+  // saida volta com "Quantidade maior que o saldo disponivel".
+  if (!entrada && !disponiveis.some(x => x.id === f.materialId)) f.materialId = disponiveis[0].id;
   return `
     <div class="field">
       <label>Material</label>
@@ -180,12 +186,19 @@ function linhaMaterial(x) {
   `;
 }
 
-function grupoMateriais(titulo, itens) {
+// Cada tipo e uma aba que abre e fecha (17/11/2026): fechado mostra so o
+// nome, quantos materiais e o total; tocar abre a lista. Um aberto por vez,
+// pra tela nao virar um rolo comprido.
+function grupoMateriais(tipo, itens) {
   const total = itens.reduce((s, x) => s + (Number(x.quantidade) || 0), 0);
+  const aberto = state.estoqueAdmGrupoAberto === tipo.chave;
   return `
-    <div class="estoque-adm-grupo">
-      <div class="estoque-adm-grupo-titulo"><span>${titulo}</span><span>${total} un</span></div>
-      ${itens.map(linhaMaterial).join('')}
+    <div class="estoque-adm-grupo${aberto ? ' aberto' : ''}">
+      <button class="estoque-adm-grupo-titulo" data-action="estoque-adm-grupo" data-value="${escapeHtml(tipo.chave)}" aria-expanded="${aberto}">
+        <span>${tipo.emoji} ${escapeHtml(tipo.nome)}</span>
+        <span>${itens.length} ${itens.length === 1 ? 'material' : 'materiais'} · ${total} un <i>${aberto ? '▾' : '▸'}</i></span>
+      </button>
+      ${aberto ? itens.map(linhaMaterial).join('') : ''}
     </div>
   `;
 }
@@ -216,14 +229,14 @@ function renderEstoqueAtual() {
     ${perguntarTipo(semTipo)}
     <div class="card estoque-adm-atual">
       <div class="painel-titulo">📦 Estoque atual</div>
-      <div class="fin-explica">O saldo é calculado pelas entradas e saídas registradas. Toque num material para mudar o tipo dele.</div>
+      <div class="fin-explica">O saldo é calculado pelas entradas e saídas registradas. Toque num tipo para abrir a lista, e num material para mudar o tipo dele.</div>
       <div class="doacao-total">${escapeHtml(textoResumoEstoqueAdm(resumo))}</div>
       ${itens.some(x => Number(x.quantidade) > 0) ? botaoGerarRelatorio('estoque-adm-atual', [
         { acao: 'estoque-adm-atual-texto', rotulo: '📋 WhatsApp' },
         { acao: 'estoque-adm-atual-pdf', rotulo: '📄 PDF' },
         { acao: 'estoque-adm-atual-imagem', rotulo: '🖼️ Imagem' },
       ], 'margin-top:10px;') : ''}
-      ${itens.length ? grupos.map(g => grupoMateriais(`${g.tipo.emoji} ${g.tipo.nome}`, g.itens)).join('') : '<div class="empty">Nenhum material cadastrado ainda.</div>'}
+      ${itens.length ? grupos.map(g => grupoMateriais(g.tipo, g.itens)).join('') : '<div class="empty">Nenhum material cadastrado ainda.</div>'}
     </div>
   `;
 }
@@ -363,6 +376,13 @@ export const acoes = {
     return render();
   },
   // Tocar num material da lista abre (ou fecha) a troca de tipo dele.
+  'estoque-adm-grupo': async (id, target, action, e) => {
+    const chave = target.dataset.value;
+    state.estoqueAdmGrupoAberto = state.estoqueAdmGrupoAberto === chave ? null : chave;
+    state.estoqueAdmTipoAberto = null;
+    state.estoqueAdmTipoCriar = null;
+    return render();
+  },
   'estoque-adm-item-abrir': async (id, target, action, e) => {
     state.estoqueAdmTipoAberto = state.estoqueAdmTipoAberto === id ? null : id;
     state.estoqueAdmTipoCriar = null;

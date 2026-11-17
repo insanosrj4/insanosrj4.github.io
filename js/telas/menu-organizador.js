@@ -395,7 +395,10 @@ export function renderMenuOrganizador(app) {
     return;
   }
   app.innerHTML = `
-    <div class="back-link on-photo" data-action="go-divisoes">‹ Trocar divisão</div>
+    <div class="menu-org-topo">
+      <div class="back-link on-photo" data-action="go-divisoes">‹ Trocar divisão</div>
+      ${state.adminEscopo === 'regional' ? '<button class="btn-registros" data-action="abrir-registro" title="Tudo o que foi gravado pelo app, com data e hora">📜 Registros</button>' : ''}
+    </div>
     <div class="event-header">
       <h1 style="font-size: 20px;">Organizador</h1>
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>

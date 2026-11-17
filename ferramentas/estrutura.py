@@ -265,6 +265,9 @@ in of delete void throw try catch finally switch case default class extends supe
 async export import from as true false null undefined this static get set target action id e
 acoes area mapa nome tratar'''.split())
 IDENT = re.compile(r'\b([A-Za-z_$][\w$]*)\b')
+# Pros nomes soltos: o que vem depois de UM ponto e campo de objeto
+# (linha.quando), nao nome solto. Depois de "..." (espalhar) continua sendo.
+IDENT_SOLTO = re.compile(r'(?<![\w$])(?<![^.]\.)([A-Za-z_$][\w$]*)\b')
 for rel, txt in sorted(fontes.items()):
     corpo = re.sub(r"^import \{[^}]+\} from '[^']+';", '', txt, flags=re.M)
     corpo = re.sub(r'//[^\n]*', '', corpo)
@@ -274,7 +277,7 @@ for rel, txt in sorted(fontes.items()):
     importados = set()
     for itens, _ in IMP.findall(txt):
         importados |= set(local for _, local in nomes_do_import(itens))
-    for n in sorted(set(IDENT.findall(corpo))):
+    for n in sorted(set(IDENT_SOLTO.findall(corpo))):
         if n in dono and dono[n] != rel and n not in locais and n not in importados \
            and n not in GLOBAIS and n not in KW:
             erro('%s usa "%s" sem importar' % (rel, n))

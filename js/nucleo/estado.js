@@ -326,6 +326,18 @@ export let state = {
   // A caixa do "➕ Novo tipo" aberta: { id do material (ou 'material-novo'
   // no cadastro), nome digitado }.
   estoqueAdmTipoCriar: null,
+  // O tipo aberto na aba Estoque (a chave), ou null = todos fechados.
+  estoqueAdmGrupoAberto: null,
+
+  // 📜 Registros (telas/registro.js): a lista lida da planilha, os filtros
+  // (so erros, divisao) e se ha mais antigos pra buscar.
+  registroLinhas: null,
+  registroCarregando: false,
+  registroErro: null,
+  registroSoErros: false,
+  registroDivisao: '',
+  registroTemMais: false,
+  registroMais: false,
 
   // Funcoes especiais (Batedores e Caveiras), so do Regional. A funcao
   // aberta e os eventos dela, que nunca entram em state.events. O evento

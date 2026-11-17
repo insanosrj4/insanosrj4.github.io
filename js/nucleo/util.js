@@ -280,6 +280,30 @@ export function mostrarAviso(texto) {
   fimDoAviso = setTimeout(() => el.classList.remove('visivel'), 2400);
 }
 
+// O balao de erro (ver nucleo/falhas.js): fica fora do #app pelo mesmo
+// motivo do aviso de cima, e NAO some sozinho - a pessoa le, tira print se
+// quiser, e fecha no "Entendi". Um erro novo troca o texto do anterior.
+export function mostrarErro(titulo, motivo) {
+  let el = document.getElementById('erro-flutuante');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'erro-flutuante';
+    el.setAttribute('role', 'alert');
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.erro-flutuante-ok')) el.classList.remove('visivel');
+    });
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="erro-flutuante-titulo">❌ ${escapeHtml(titulo)}</div>
+    <div class="erro-flutuante-motivo"><b>Motivo:</b> ${escapeHtml(motivo)}</div>
+    <button type="button" class="erro-flutuante-ok">Entendi</button>
+  `;
+  el.classList.remove('visivel');
+  void el.offsetWidth;
+  el.classList.add('visivel');
+}
+
 // O PDF dos relatorios que nao tem uma pagina propria na tela (o mes da
 // Caixinha, uma rodada de Insight, o Rank...): a folha leva o MESMO texto
 // do WhatsApp, entao os dois nunca discordam. O *negrito* e o _italico_ do

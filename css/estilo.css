@@ -1641,6 +1641,76 @@ body::before { animation: respirar 40s ease-in-out infinite alternate; transform
 }
 #aviso-flutuante.visivel { opacity: 1; transform: translate(-50%, 0); }
 
+/* O balao de erro de uma gravacao (nucleo/falhas.js): o mesmo vidro do
+   aviso, com a faixa vermelha da falta infracional. Fica ate o "Entendi". */
+#erro-flutuante {
+  position: fixed;
+  left: 50%;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  width: min(440px, calc(100% - 32px));
+  padding: 13px 15px 12px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(48, 30, 28, 0.94), rgba(20, 16, 15, 0.97));
+  border: 1px solid var(--danger-line);
+  border-left: 4px solid var(--status-infracional);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 14px 34px -6px rgba(0, 0, 0, 0.85);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: var(--white-strong);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 16px);
+  transition: opacity 0.25s ease, transform 0.35s var(--mola);
+}
+#erro-flutuante.visivel { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.erro-flutuante-titulo { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.erro-flutuante-motivo { font-size: 13px; line-height: 1.45; color: var(--text); }
+.erro-flutuante-motivo b { color: var(--status-infracional); }
+.erro-flutuante-ok {
+  display: block;
+  margin: 10px 0 0 auto;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--white-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media print { #erro-flutuante { display: none !important; } }
+
+/* 📜 Registros: o botaozinho no canto do menu do organizador (so no
+   Regional) e a tela da lista (telas/registro.js). */
+.menu-org-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.btn-registros {
+  appearance: none; flex: none; margin: 0;
+  padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: rgba(20, 20, 19, 0.6);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.btn-registros:hover { color: var(--white-strong); border-color: var(--line-strong); }
+.registro-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.registro-chips .chip-option { padding: 5px 11px; font-size: 12.5px; }
+.registro-lista { padding-top: 4px; }
+.registro-dia {
+  margin: 14px 0 2px; padding-bottom: 5px; border-bottom: 1px solid var(--line-strong);
+  color: var(--white-strong); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.registro-dia:first-child { margin-top: 4px; }
+.registro-linha { padding: 9px 2px 9px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); border-left: 3px solid transparent; }
+.registro-linha.erro { border-left-color: var(--status-infracional); background: rgba(217, 99, 90, 0.07); }
+.registro-topo { display: flex; align-items: baseline; gap: 8px; font-size: 13.5px; }
+.registro-topo b { color: var(--white-strong); flex: 1; min-width: 0; }
+.registro-hora { color: var(--text-muted); font-variant-numeric: tabular-nums; flex: none; }
+.registro-quem { color: var(--text-muted); font-size: 11.5px; flex: none; text-align: right; }
+.registro-detalhe { margin-top: 3px; color: var(--text); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.registro-erro { margin-top: 4px; color: var(--status-infracional); font-size: 13px; font-weight: 600; line-height: 1.4; }
+.registro-aparelho { margin-top: 3px; color: var(--text-muted); font-size: 11.5px; }
+
 /* Esqueleto da primeira carga: o contorno da tela inicial em vidro, com
    um brilho passando. */
 .esqueleto-tela { display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 8px; }
@@ -2516,13 +2586,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
    por tipo (Coletes, Bandeiras, Patches, Honrarias). Zerado fica apagado
    no fim do grupo. Tocar na linha abre a troca de tipo embaixo dela. */
 .estoque-adm-tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.estoque-adm-grupo { margin-top: 16px; }
+.estoque-adm-grupo { margin-top: 6px; }
+.estoque-adm-grupo:first-of-type { margin-top: 14px; }
 .estoque-adm-grupo-titulo {
+  appearance: none; width: 100%; margin: 0; padding: 12px 2px;
   display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
-  padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid var(--line-strong);
-  color: var(--white-strong); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  background: none; border: none; border-bottom: 1px solid var(--line-strong); cursor: pointer; text-align: left;
+  color: var(--white-strong); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
 }
-.estoque-adm-grupo-titulo span:last-child { color: var(--text-muted); letter-spacing: 0.02em; }
+.estoque-adm-grupo-titulo span:last-child { color: var(--text-muted); letter-spacing: 0.02em; white-space: nowrap; }
+.estoque-adm-grupo-titulo i { font-style: normal; display: inline-block; width: 12px; text-align: right; color: var(--white-strong); }
+.estoque-adm-grupo.aberto .estoque-adm-grupo-titulo { margin-bottom: 2px; }
 .estoque-adm-linha {
   appearance: none; width: 100%; margin: 0; padding: 9px 2px;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;

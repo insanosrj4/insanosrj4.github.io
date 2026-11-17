@@ -101,7 +101,9 @@ Não controlamos os cabeçalhos de resposta do Apps Script, então o CORS
 normal não funciona. Daí três caminhos, todos em `js/nucleo/api.js`:
 
 - **`api(acao, params)`** — leitura e gravação comuns. Usa **JSONP** (injeta
-  uma tag `<script>`), com 20s de limite e 2 retentativas.
+  uma tag `<script>`), com 20s de limite e 2 retentativas. Desde 17/11/2026
+  só repete falha de **conexão** (ou "planilha ocupada"): quando a planilha
+  responde que não, o erro sobe na hora, sem 10s de "Salvando…".
 - **`apiPost(acao, params)`** — para payloads grandes (convocação colada,
   calendário em lote), que não cabem numa URL. `fetch` POST **sem**
   `Content-Type` de propósito: assim o navegador trata como requisição
@@ -109,6 +111,16 @@ normal não funciona. Daí três caminhos, todos em `js/nucleo/api.js`:
   responde.
 - **`apiBeacon(acao, params)`** — rede de segurança no `pagehide`: se a aba
   for fechada com gravação pendente, o navegador entrega mesmo assim.
+
+**Balão de erro (17/11/2026).** Quando uma gravação falha, o próprio `api()`/
+`apiPost()` mostra um balão vermelho ("❌ Não foi possível registrar a saída.
+Motivo: …") que fica até o "Entendi" — vale pra todas as telas de uma vez. O
+texto vem de `js/nucleo/falhas.js`: a frase de cada gravação (toda ação
+gravada precisa estar lá; o `regras.mjs` confere contra o `ACOES_PROTEGIDAS`
+do Code.gs) e o motivo em português (sem internet, planilha ocupada, PIN
+vencido e os acentos que a planilha não põe). Leituras não abrem balão, nem a
+ficha do pretendente (que mostra o erro no formulário). O `alert()` do
+`salvarOuAvisar` saiu: o balão faz o papel dele.
 
 **A gravação de presença é otimista.** A tela responde na hora, e a gravação
 corre por fora, agrupando toques seguidos em 600ms (`js/fila/presenca.js`).
@@ -1334,6 +1346,40 @@ cards lado a lado, Entrada e Saída, e mostra apenas o formulário escolhido.
   `imagensEstoqueAtualAdm`). O relatório completo continua na aba Relatório.
 - Ação nova `estoqueAdmTipo`, com a mesma guarda das outras. **Precisa do
   Code.gs na versão `2026-11-17-estoque-adm-tipos`.**
+- **Tipos que abrem e fecham (17/11/2026):** na aba Estoque cada tipo é um
+  título ("🦺 Coletes · 7 materiais · 17 un ▸"); tocar abre a lista dele.
+  Um aberto por vez (`estoqueAdmGrupoAberto`), todos fechados ao entrar.
+- **Saída com o material certo (17/11/2026, relato do colete do Amorim):** a
+  lista da Saída só mostra quem tem saldo, mas o formulário nascia com o 1º
+  material da lista inteira (às vezes um zerado). O celular mostrava um e o
+  app mandava outro, e a planilha recusava. Agora o escolhido é sempre um
+  dos que aparecem (`novoForm` e `seletorMaterial`).
+
+## 📜 Registros (o diário do app)
+
+Pedido em 17/11/2026, para achar erro sem depender de alguém saber explicar.
+
+- **O que entra:** toda gravação feita pelo app (inclusive a presença e a
+  ficha de admissão), com data e hora, o que foi, por qual PIN, um detalhe
+  legível e se deu certo, ou a mensagem exata do erro. Mais os **erros de
+  tela** do celular (`js/fila/erros-de-tela.js`, pelo `sendBeacon`, até 5
+  por vez que o app abre; o Code.gs freia em 300 por dia).
+- **Como:** o `doGet`/`doPost` chamam `executarERegistrar`, que roda a ação
+  e anota a linha na aba **Registro** (`appendRow`, tudo como texto). Anotar
+  nunca derruba a ação. Leitura não entra. Ação nova que grava precisa de
+  um rótulo em `ROTULOS_REGISTRO` e um caso em `detalheDoRegistro`.
+- **O que nunca entra:** PIN, CPF, RG, telefone, endereço, foto, saúde,
+  contato de emergência e motivo de afastamento. O detalhe é montado campo a
+  campo; o `planilha.mjs` confere.
+- **Quem:** o app não sabe quem mexeu, só por qual PIN entrou. Presença e
+  ficha aparecem como "Sem PIN"; na presença vai o nome de quem tocou.
+- **Onde ver:** a aba Registro da planilha e o botãozinho **📜 Registros** no
+  canto do menu do organizador, só no Regional (`telas/registro.js`, ação
+  `registro`, só PIN do Regional). Separado por dia, mais recente primeiro,
+  com filtros "Só erros" e por divisão, 150 por vez e "Ver mais antigos".
+- **90 dias:** o gatilho da madrugada (`encerrarEventosVencidos`) também
+  chama `limparRegistroAntigo`.
+- **Precisa do Code.gs na versão `2026-11-17-registro`.**
 
 ## A convocação: o app lê e escreve
 

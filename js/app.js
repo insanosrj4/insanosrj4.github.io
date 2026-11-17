@@ -2,6 +2,8 @@
 // clique/digitacao e faz a primeira carga.
 
 import { loadInitial } from './dados/carregar.js';
+import { ligarErrosDeTela } from './fila/erros-de-tela.js';
+import { acoes as acoesRegistro, renderRegistro } from './telas/registro.js';
 import { state } from './nucleo/estado.js';
 import { corTipoEvento } from './nucleo/config.js';
 import { LOGO_SRC } from './nucleo/imagens.js';
@@ -251,6 +253,7 @@ function desenhar(app) {
   if (state.view === 'relatorio') return renderRelatorioShell(app);
   if (state.view === 'calendario-divisoes') return renderCalendarioDivisoes(app);
   if (state.view === 'calendario') return renderCalendario(app);
+  if (state.view === 'registro') return renderRegistro(app);
 }
 
 // Os campos de data NAO tem tratador aqui de proposito - o valor deles so e
@@ -414,6 +417,7 @@ for (const [area, mapa] of Object.entries({
   acoesMenuOrganizador,
   acoesConvocacao,
   acoesRelatorioIndividual,
+  acoesRegistro,
 })) {
   for (const nome of Object.keys(mapa)) {
     if (ACOES[nome]) throw new Error('Acao repetida em ' + area + ': ' + nome);
@@ -518,4 +522,5 @@ window.addEventListener('touchend', () => {
 }, { passive: true });
 
 definirRender(render);
+ligarErrosDeTela();
 loadInitial();

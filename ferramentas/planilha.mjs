@@ -43,7 +43,10 @@ function novaAba(nome, linhasIniciais) {
     getLastRow: () => dados.length,
     getLastColumn: () => dados.reduce((m, l) => Math.max(m, l.length), 0),
     setFrozenRows() { return s; },
-    appendRow(l) { dados.push(l.slice()); return s; },
+    // O apostrofo do comeco e a marca de "isto e texto" da planilha de
+    // verdade, que nao guarda ele - aqui tambem nao (ver gravarNoRegistro).
+    appendRow(l) { dados.push(l.map(v => (typeof v === 'string' && v[0] === "'" ? v.slice(1) : v))); return s; },
+    deleteRows(linha, n) { dados.splice(linha - 1, n); return s; },
     // 1-indexada como no Apps Script, e a linha 1 e o cabecalho. Quem apaga
     // varias percorre de tras pra frente (ver apagarLinhas no Code.gs) -
     // apagar de frente pra tras embaralharia os indices no meio do caminho.
@@ -106,6 +109,7 @@ function carregaCodeGs(planilhaFalsa, propriedades) {
   // Cada addItem do onOpen vira um par [rótulo, nome da função] aqui.
   const itensDeMenu = [];
   const dois = (n) => String(n).padStart(2, '0');
+  const cacheFalso = {};
   const contexto = {
     SpreadsheetApp: {
       getActiveSpreadsheet: () => planilhaFalsa,
@@ -126,12 +130,15 @@ function carregaCodeGs(planilhaFalsa, propriedades) {
         const p = `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
         if (fmt === 'yyyy-MM-dd') return p;
         if (fmt === 'HH:mm') return `${dois(d.getHours())}:${dois(d.getMinutes())}`;
+        if (fmt === 'yyyy-MM-dd HH:mm:ss') return `${p} ${dois(d.getHours())}:${dois(d.getMinutes())}:${dois(d.getSeconds())}`;
         return `${dois(d.getDate())}/${dois(d.getMonth() + 1)}/${d.getFullYear()} ${dois(d.getHours())}:${dois(d.getMinutes())}`;
       },
       getUuid: () => 'id-de-mentira',
     },
     // A trava não tem o que travar aqui: um teste roda sozinho.
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
+    // O contador do freio dos erros de tela (receberErroDoApp).
+    CacheService: { getScriptCache: () => ({ get: (k) => cacheFalso[k] || null, put: (k, v) => { cacheFalso[k] = v; } }) },
     Logger: { log: (s) => logados.push(String(s)) },
     ScriptApp: {
       getProjectTriggers: () => gatilhos.slice(),
@@ -159,7 +166,7 @@ function carregaCodeGs(planilhaFalsa, propriedades) {
   };
   vm.createContext(contexto);
   vm.runInContext(fs.readFileSync(CODE_GS, 'utf8'), contexto, { filename: 'Code.gs' });
-  return { contexto, gatilhos, logados, itensDeMenu };
+  return { contexto, gatilhos, logados, itensDeMenu, cacheFalso };
 }
 
 // Datas relativas a hoje, pro teste não depender do dia em que roda.
@@ -1838,6 +1845,79 @@ log('=== pretendentes: ler e mudar a situação, só com o PIN da divisão do li
     ['Em análise', true, '111.444.777-35', 'Urso']);
   confere('e volta pra Novo', [tenta('pretendenteSituacao', { ...reg, id: idUrso, situacao: 'Novo' }).ok, tenta('pretendentes', reg).pretendentes[1].situacao], [true, 'Novo']);
   confere('ficha que não existe é avisada', tenta('pretendenteSituacao', { ...reg, id: 'zz', situacao: 'Novo' }).ok, false);
+}
+
+log('');
+log('=== o Registro (tudo que grava, com data e hora) ===');
+{
+  const p = montaPlanilha([ev('e1', daquiA(3), 'ativo')], [pr('e1', 'm1', 'Aguardando')]);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada', 'Grau a Confirmar'],
+    ['m1', 'Costa', 'VII', 'Barra - RJ4', '', '', '', '', '2026-01-01', ''], ['m2', 'Amorim', 'VI', 'Barra - RJ4', '', '', '', '', '2026-01-01', '']]);
+  const { contexto, cacheFalso } = carregaCodeGs(p, { PIN_REGIONAL:'0418', PIN_BARRA:'1234' });
+  const reg = { escopo:'regional', pin:'0418' };
+  const X = (a, params) => contexto.executarERegistrar(a, params);
+  const ultima = () => { const d = p.abas.Registro.dados; return d[d.length - 1]; };
+  const porColuna = (l) => ({ acao: l[1], divisao: l[2], detalhe: l[3], resultado: l[4], erro: l[5] });
+  const hojeBR = daquiA(0).split('-').reverse().join('/');
+
+  X('presenca', { eventoId:'e1', membroId:'m1', status:'confirmado' });
+  confere('a presença entra com o nome de quem tocou e do evento', porColuna(ultima()),
+    { acao:'Presença', divisao:'Sem PIN', detalhe:'Costa → Confirmado · Evento e1', resultado:'OK', erro:'' });
+  confere('com data e hora', /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(ultima()[0]), true);
+  const linhasAntes = p.abas.Registro.dados.length;
+  X('dados', {});
+  X('estoqueAdm', reg);
+  confere('leitura não entra no Registro', p.abas.Registro.dados.length, linhasAntes);
+
+  X('estoqueAdmMovimentar', { ...reg, tipo:'entrada', materialNome:'1º Colete Amorim', materialTipo:'coletes', quantidade:1, data:daquiA(0) });
+  confere('a entrada do estoque', porColuna(ultima()),
+    { acao:'Estoque ADM', divisao:'Regional RJ4', detalhe:'Entrada · 1 un · 1º Colete Amorim · ' + hojeBR, resultado:'OK', erro:'' });
+  const colete = contexto.executar('estoqueAdm', reg).itens[0].id;
+  X('estoqueAdmMovimentar', { ...reg, tipo:'saida', materialId:colete, quantidade:5, data:daquiA(0), destinoTipo:'membro', destinoId:'m2' });
+  confere('o caso do Amorim: o erro exato, com o material e pra quem ia', porColuna(ultima()),
+    { acao:'Estoque ADM', divisao:'Regional RJ4', detalhe:'Saída · 5 un · 1º Colete Amorim · para Amorim · ' + hojeBR,
+      resultado:'Erro', erro:'Quantidade maior que o saldo disponivel' });
+
+  X('eventoRemover', { id:'e1', escopo:'barra', pin:'9999' });
+  confere('PIN errado também fica registrado', porColuna(ultima()),
+    { acao:'Evento apagado', divisao:'Barra - RJ4', detalhe:'Evento e1', resultado:'Erro', erro:'Sem permissao - entre no modo organizador de novo' });
+
+  X('fichaMembroSalvar', { escopo:'barra', pin:'1234', membroId:'m1', telefone:'21999998888', emergenciaNome:'Maria', saude:'Asma' });
+  X('membroMovimentar', { escopo:'barra', pin:'1234', membroId:'m2', tipo:'afastamento', motivo:'Assunto de familia' });
+  const tudo = p.abas.Registro.dados.map(l => l.join(' ')).join('\n');
+  confere('dado pessoal não entra (PIN, telefone, contato, saúde, motivo)',
+    ['0418', '1234', '9999', '21999998888', 'Maria', 'Asma', 'familia'].filter(t => tudo.includes(t)), []);
+  confere('a carteirinha diz só de quem é', porColuna(p.abas.Registro.dados[p.abas.Registro.dados.length - 2]).detalhe, 'Costa');
+  confere('o afastamento diz quem, sem o motivo', porColuna(ultima()).detalhe.startsWith('Amorim · afastamento'), true);
+
+  confere('ação que nem existe não quebra nada', X('naoExiste', {}).ok, false);
+
+  // O erro da tela do celular.
+  X('erroApp', { mensagem:'Cannot read properties of undefined', tela:'admin · estoque-adm-estoque', aparelho:'Android 14 · Chrome', escopo:'regional' });
+  confere('o erro da tela', ultima().slice(1),
+    ['Erro na tela', 'Regional RJ4', 'tela: admin · estoque-adm-estoque', 'Erro', 'Cannot read properties of undefined', 'Android 14 · Chrome']);
+  const antesDoFreio = p.abas.Registro.dados.length;
+  Object.keys(cacheFalso).forEach(k => { cacheFalso[k] = '300'; });
+  X('erroApp', { mensagem:'de novo' });
+  confere('o freio: passou de 300 no dia, não grava mais', p.abas.Registro.dados.length, antesDoFreio);
+
+  // Ler: so o Regional.
+  confere('ler sem PIN é recusado', contexto.executar('registro', {}).ok, false);
+  confere('o PIN da Barra não lê o Registro', contexto.executar('registro', { escopo:'barra', pin:'1234' }).ok, false);
+  const todos = contexto.executar('registro', reg).linhas;
+  confere('o mais recente primeiro', todos[0].acao, 'Erro na tela');
+  confere('só erros', contexto.executar('registro', { ...reg, soErros:'1' }).linhas.every(l => !l.ok), true);
+  confere('por divisão', contexto.executar('registro', { ...reg, divisao:'Barra - RJ4' }).linhas.map(l => l.acao),
+    ['Entrada/Saída', 'Carteirinha salva', 'Evento apagado']);
+  const pagina = contexto.executar('registro', { ...reg, limite:2 });
+  confere('de 2 em 2, com "ver mais"', [pagina.linhas.length, pagina.temMais], [2, true]);
+
+  // A limpeza da madrugada: so o que tem mais de 90 dias.
+  const velho = (dias) => { const d = new Date(); d.setDate(d.getDate() - dias); return emISO(d) + ' 10:00:00'; };
+  p.abas.Registro.dados.splice(1, 0, [velho(200), 'Presença', 'Sem PIN', 'velha', 'OK', '', ''], [velho(91), 'Presença', 'Sem PIN', 'velha', 'OK', '', ''],
+    [velho(89), 'Presença', 'Sem PIN', 'nova', 'OK', '', '']);
+  confere('a madrugada apaga o que tem mais de 90 dias', contexto.limparRegistroAntigo(), 2);
+  confere('e fica o resto', p.abas.Registro.dados[1][3], 'nova');
 }
 
 log('');
