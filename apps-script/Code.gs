@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-14-ficha-admissao';
+var VERSAO = '2026-11-17-estoque-adm-tipos';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -186,7 +186,26 @@ var SITUACAO_AFASTADO = 'Afastado';
 // Estoque de materiais administrativos do Regional. A primeira aba e o
 // cadastro dos materiais; a segunda e um livro permanente. O saldo exibido
 // nunca e digitado: e a soma das entradas menos as saidas nao anuladas.
-var CAB_ESTOQUE_ADM_ITENS = ['ID', 'Material', 'Criado em'];
+// Tipo (17/11/2026): coletes, bandeiras, patches ou honrarias. Vazio = o
+// app adivinha pelo nome, ou pergunta. Acrescentada sozinha no fim pela aba().
+var CAB_ESTOQUE_ADM_ITENS = ['ID', 'Material', 'Criado em', 'Tipo'];
+// As mesmas chaves de TIPOS_MATERIAL_ADM, em js/dominio/estoque-adm.js.
+// Alem destes 4, o organizador pode criar outros ("Novo tipo"): o tipo
+// criado e o proprio texto gravado na coluna, ate 30 letras.
+var TIPOS_MATERIAL_ADM = ['coletes', 'bandeiras', 'patches', 'honrarias'];
+
+// Arruma o tipo que chegou do app. Um dos fixos, escrito de qualquer jeito
+// ("Coletes"), vira a chave dele; um criado que ja existe com outra grafia
+// ("camisas" e ja ha "Camisas") reaproveita a grafia gravada, pra nao
+// nascer tipo repetido. Comeco de formula (= + - @) e tirado.
+function tipoMaterialArrumado(texto, cadastro) {
+  var t = String(texto || '').replace(/^[\s=+\-@]+/, '').trim().replace(/\s+/g, ' ').slice(0, 30);
+  if (!t) return '';
+  var chave = chaveDoItem(t);
+  if (TIPOS_MATERIAL_ADM.indexOf(chave) !== -1) return chave;
+  var igual = (cadastro || []).filter(function (l) { return String(l[3] || '').trim() && chaveDoItem(l[3]) === chave; })[0];
+  return igual ? String(igual[3]).trim() : t;
+}
 var CAB_ESTOQUE_ADM_MOV = ['ID', 'Data', 'Tipo', 'ID Material', 'Material', 'Quantidade',
   'Destino Tipo', 'Destino ID', 'Destino Nome', 'Observacao', 'Registrado em', 'Anulado em'];
 // O planejador de Acoes Sociais (21/10/2026): cada divisao monta o proprio,
@@ -348,7 +367,7 @@ var ACOES_PROTEGIDAS = [
   // Entrada/Saida: o motivo de um afastamento pode ser assunto pessoal.
   'membroMovimentar', 'movimentos', 'membroConfirmarGrau',
   // Estoque administrativo: inclusive a leitura e exclusiva do Regional.
-  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular',
+  'estoqueAdm', 'estoqueAdmMovimentar', 'estoqueAdmAnular', 'estoqueAdmTipo',
   // O planejador de Acoes Sociais de cada divisao.
   'acoesSociais', 'acaoSocialIdeiaSalvar', 'acaoSocialIdeiaRemover', 'acaoSocialAgendaSalvar',
   'acaoSocialAgendaRemover', 'acaoSocialTextoSalvar', 'acaoSocialTextoRemover', 'acoesSociaisImportar',
@@ -440,6 +459,7 @@ function executar(action, p) {
   if (action === 'estoqueAdm') return lerEstoqueAdm(p);
   if (action === 'estoqueAdmMovimentar') return comTrava(function () { return movimentarEstoqueAdm(p); });
   if (action === 'estoqueAdmAnular') return comTrava(function () { return anularMovimentoEstoqueAdm(p); });
+  if (action === 'estoqueAdmTipo') return comTrava(function () { return tipoMaterialEstoqueAdm(p); });
   if (action === 'acoesSociais') return lerAcoesSociais(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'acaoSocialIdeiaSalvar') return comTrava(function () { return salvarIdeiaAcaoSocial(p); });
   if (action === 'acaoSocialIdeiaRemover') return comTrava(function () { return removerLinhaAcaoSocial(ABA_ACOES_SOCIAIS_IDEIAS, CAB_ACOES_SOCIAIS_IDEIAS, p); });
@@ -2844,7 +2864,10 @@ function dataISOValidaEstoqueAdm(v) {
 function dadosEstoqueAdm() {
   var itens = linhas(aba(ABA_ESTOQUE_ADM_ITENS, CAB_ESTOQUE_ADM_ITENS))
     .filter(function (l) { return l[0] && String(l[1] || '').trim(); })
-    .map(function (l) { return { id: String(l[0]), nome: String(l[1]).trim(), quantidade: 0 }; });
+    .map(function (l) {
+      var tipo = String(l[3] || '');
+      return { id: String(l[0]), nome: String(l[1]).trim(), tipo: tipo.trim(), quantidade: 0 };
+    });
   var porId = {};
   itens.forEach(function (x) { porId[x.id] = x; });
 
@@ -2880,7 +2903,7 @@ function lerEstoqueAdm(p) {
   return dadosEstoqueAdm();
 }
 
-function materialEstoqueAdm(materialId, materialNome) {
+function materialEstoqueAdm(materialId, materialNome, materialTipo) {
   var s = aba(ABA_ESTOQUE_ADM_ITENS, CAB_ESTOQUE_ADM_ITENS);
   var cadastro = linhas(s);
   var id = String(materialId || '');
@@ -2896,10 +2919,11 @@ function materialEstoqueAdm(materialId, materialNome) {
   var repetido = cadastro.filter(function (l) { return chaveDoItem(l[1]) === chave; })[0];
   if (repetido) return { id: String(repetido[0]), nome: String(repetido[1]).trim() };
 
+  var tipo = tipoMaterialArrumado(materialTipo, cadastro);
   var novo = { id: novoId(), nome: nome };
   var linha = s.getLastRow() + 1;
   s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_ITENS.length).setNumberFormat('@');
-  s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_ITENS.length).setValues([[novo.id, novo.nome, agora()]]);
+  s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_ITENS.length).setValues([[novo.id, novo.nome, agora(), tipo]]);
   return novo;
 }
 
@@ -2934,7 +2958,7 @@ function movimentarEstoqueAdm(p) {
   var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
   if (data > hoje) throw new Error('A data nao pode ser no futuro');
 
-  var material = materialEstoqueAdm(p.materialId, tipo === 'entrada' ? p.materialNome : '');
+  var material = materialEstoqueAdm(p.materialId, tipo === 'entrada' ? p.materialNome : '', tipo === 'entrada' ? p.materialTipo : '');
   var destino = { tipo: '', id: '', nome: '' };
   if (tipo === 'saida') {
     if (saldoMaterialEstoqueAdm(material.id) < quantidade) throw new Error('Quantidade maior que o saldo disponivel');
@@ -2948,6 +2972,21 @@ function movimentarEstoqueAdm(p) {
   s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_MOV.length).setNumberFormat('@');
   s.getRange(linha, 6).setNumberFormat('0');
   s.getRange(linha, 1, 1, CAB_ESTOQUE_ADM_MOV.length).setValues([valores]);
+  return dadosEstoqueAdm();
+}
+
+// O tipo de um material ja cadastrado: a resposta do "Onde colocar?", a
+// troca feita tocando na linha ou um tipo novo criado ali. So muda a coluna Tipo; o nome e o livro de
+// movimentacoes ficam como estao.
+function tipoMaterialEstoqueAdm(p) {
+  exigirRegionalEstoqueAdm(p);
+  var s = aba(ABA_ESTOQUE_ADM_ITENS, CAB_ESTOQUE_ADM_ITENS);
+  var tipo = tipoMaterialArrumado(p.tipo, linhas(s));
+  if (!tipo) throw new Error('Escolha o tipo do material');
+  var id = String(p.id || '');
+  var achado = acharLinha(s, function (l) { return String(l[0]) === id; });
+  if (!id || !achado) throw new Error('Material nao encontrado');
+  s.getRange(achado.indice, 4).setNumberFormat('@').setValue(tipo);
   return dadosEstoqueAdm();
 }
 

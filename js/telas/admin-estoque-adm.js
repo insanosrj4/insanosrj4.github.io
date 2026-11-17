@@ -7,18 +7,25 @@ import { escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR, hojeISO, imprimirTexto, ordenarPorHierarquia } from '../nucleo/util.js';
-import { filtrarMovimentosEstoqueAdm, quantidadeEstoqueAdm, relatorioEstoqueAdm, resumoEstoqueAdm, textoRelatorioEstoqueAdm, textoResumoEstoqueAdm } from '../dominio/estoque-adm.js';
+import { TAMANHO_MAXIMO_TIPO_ADM, estoqueAtualAdm, filtrarMovimentosEstoqueAdm, gruposEstoqueAdm, palpiteTipoMaterialAdm, quantidadeEstoqueAdm, relatorioEstoqueAdm, resumoEstoqueAdm, textoEstoqueAtualAdm, textoRelatorioEstoqueAdm, textoResumoEstoqueAdm, textoTipoNovoAdm, tipoDoMaterialAdm, tipoMaterialAdmPorChave, tiposMaterialAdm } from '../dominio/estoque-adm.js';
 import { botaoGerarRelatorio } from '../ui/comuns.js';
-import { imagensRelatorioEstoqueAdm, mostrarPreviaImagem } from '../ui/imagem.js';
+import { imagensEstoqueAtualAdm, imagensRelatorioEstoqueAdm, mostrarPreviaImagem } from '../ui/imagem.js';
 
 function dados() { return state.estoqueAdmDados || { itens: [], movimentos: [] }; }
+// Os 4 fixos e os criados pelo organizador (os que algum material usa).
+function tipos() { return tiposMaterialAdm(dados().itens); }
+// O "➕ Novo tipo" do cadastro de material novo usa esta chave no lugar
+// do id do material, que ainda nao existe.
+const NOVO_MATERIAL = 'material-novo';
 
 function novoForm(tipo) {
   const itens = dados().itens || [];
   return {
     tipo,
     materialId: tipo === 'entrada' && !itens.length ? 'novo' : (itens[0] && itens[0].id) || '',
-    materialNome: '', quantidade: '', data: formatDataBR(hojeISO()),
+    // materialTipo: o tipo escolhido no cadastro de material novo. Vazio =
+    // ainda vale o palpite pelo nome (palpiteTipoMaterialAdm).
+    materialNome: '', materialTipo: '', quantidade: '', data: formatDataBR(hojeISO()),
     destinoTipo: 'divisao', destinoId: 'regional', observacao: '',
   };
 }
@@ -54,7 +61,38 @@ function seletorMaterial(f) {
     </div>
     ${entrada && f.materialId === 'novo' ? `
       <div class="field"><label>Nome do novo material</label><input type="text" maxlength="60" data-estoque-adm="materialNome" value="${escapeHtml(f.materialNome)}" placeholder="Ex.: Colete, cone, rádio"></div>
+      <label>Tipo do material</label>
+      <div style="margin:5px 0 10px;">${botoesTipo('estoque-adm-novo-tipo', '', tipoDoNovo(f))}</div>
     ` : ''}
+  `;
+}
+
+// O tipo do material novo: o escolhido, ou o palpite pelo nome.
+function tipoDoNovo(f) { return f.materialTipo || palpiteTipoMaterialAdm(f.materialNome, tipos()); }
+
+// Os tipos em botoes, mais o "➕ Novo tipo", que abre uma caixa pra
+// escrever o nome. `id` vai junto quando e um material ja cadastrado; no
+// cadastro de material novo fica vazio. Um tipo novo escolhido no cadastro
+// ainda nao esta em material nenhum: entra na lista pra aparecer marcado.
+function botoesTipo(acao, id, ativo) {
+  const lista = tipos();
+  if (ativo && !lista.some(t => t.chave === ativo)) lista.push(tipoMaterialAdmPorChave(ativo, lista));
+  const dono = id || NOVO_MATERIAL;
+  const criando = state.estoqueAdmTipoCriar && state.estoqueAdmTipoCriar.id === dono;
+  const comId = id ? ` data-id="${escapeHtml(id)}"` : '';
+  return `
+    <div class="estoque-adm-tipos">
+      ${lista.map(t => `<button class="chip-option ${t.chave === ativo ? 'active' : ''}" data-action="${acao}"${comId} data-value="${escapeHtml(t.chave)}">${t.emoji} ${escapeHtml(t.nome)}</button>`).join('')}
+      <button class="chip-option estoque-adm-tipo-mais ${criando ? 'active' : ''}" data-action="estoque-adm-tipo-criar-abrir" data-id="${escapeHtml(dono)}">➕ Novo tipo</button>
+    </div>
+    ${criando ? `
+      <div class="estoque-adm-tipo-criar">
+        <div class="field" style="margin:0 0 8px;"><label>Nome do novo tipo</label><input type="text" maxlength="${TAMANHO_MAXIMO_TIPO_ADM}" data-estoque-adm-tipo-nome="1" value="${escapeHtml(state.estoqueAdmTipoCriar.nome)}" placeholder="Ex.: Camisas, Bonés, Adesivos"></div>
+        <div class="row-gap">
+          <button class="btn" style="flex:1;" data-action="estoque-adm-tipo-criar" data-id="${escapeHtml(dono)}" ${state.estoqueAdmSalvando ? 'disabled' : ''}>${id ? 'Criar e colocar aqui' : 'Usar este tipo'}</button>
+          <button class="btn secondary" data-action="estoque-adm-tipo-criar-cancelar">Cancelar</button>
+        </div>
+      </div>` : ''}
   `;
 }
 
@@ -126,17 +164,67 @@ function renderMovimentar() {
   `;
 }
 
+// Uma linha da lista: nome e saldo. Tocar abre a troca de tipo embaixo.
+function linhaMaterial(x) {
+  const zerado = !Number(x.quantidade);
+  const aberto = state.estoqueAdmTipoAberto === x.id;
+  return `
+    <button class="estoque-adm-linha${zerado ? ' zerado' : ''}${aberto ? ' aberta' : ''}" data-action="estoque-adm-item-abrir" data-id="${escapeHtml(x.id)}" aria-expanded="${aberto}">
+      <span>${escapeHtml(x.nome)}</span><b>${zerado ? 'zerado' : `${x.quantidade} un`}</b>
+    </button>
+    ${aberto ? `
+      <div class="estoque-adm-trocar">
+        <div class="fin-explica" style="margin:0 0 6px;">Mudar o tipo deste material:</div>
+        ${botoesTipo('estoque-adm-item-tipo', x.id, tipoDoMaterialAdm(x, tipos()))}
+      </div>` : ''}
+  `;
+}
+
+function grupoMateriais(titulo, itens) {
+  const total = itens.reduce((s, x) => s + (Number(x.quantidade) || 0), 0);
+  return `
+    <div class="estoque-adm-grupo">
+      <div class="estoque-adm-grupo-titulo"><span>${titulo}</span><span>${total} un</span></div>
+      ${itens.map(linhaMaterial).join('')}
+    </div>
+  `;
+}
+
+// O que o app nao entendeu pelo nome: fica no topo, perguntando onde
+// colocar, ate alguem escolher. A escolha vai pra planilha.
+function perguntarTipo(semTipo) {
+  if (!semTipo.length) return '';
+  return `
+    <div class="card estoque-adm-perguntar">
+      <div class="painel-titulo">❓ Onde colocar?</div>
+      <div class="fin-explica">O app não entendeu o tipo ${semTipo.length === 1 ? 'deste material' : 'destes materiais'} pelo nome. Toque no tipo certo, ou em ➕ Novo tipo para criar outro.</div>
+      ${semTipo.map(x => `
+        <div class="estoque-adm-perguntar-item">
+          <div class="estoque-adm-item"><b>${escapeHtml(x.nome)}</b><strong>${Number(x.quantidade) ? `${x.quantidade} un` : 'zerado'}</strong></div>
+          ${botoesTipo('estoque-adm-item-tipo', x.id, '')}
+        </div>`).join('')}
+    </div>
+  `;
+}
+
 function renderEstoqueAtual() {
   const itens = dados().itens;
   const resumo = resumoEstoqueAdm(itens);
+  const { grupos, semTipo } = gruposEstoqueAdm(itens);
   return `
     ${aviso()}
-    <div class="card"><div class="painel-titulo">📦 Estoque atual</div><div class="fin-explica">O saldo é calculado pelas entradas e saídas registradas.</div><div class="doacao-total">${escapeHtml(textoResumoEstoqueAdm(resumo))}</div></div>
-    ${itens.length ? `<div class="estoque-lista">${itens.map(x => `
-      <div class="card estoque-card${Number(x.quantidade) ? '' : ' acabou'}">
-        <div class="estoque-adm-item"><b>${escapeHtml(x.nome)}</b><strong>${x.quantidade} un</strong></div>
-        ${Number(x.quantidade) ? '' : '<div class="estoque-acabou-texto">zerado</div>'}
-      </div>`).join('')}</div>` : '<div class="empty">Nenhum material cadastrado ainda.</div>'}
+    ${perguntarTipo(semTipo)}
+    <div class="card estoque-adm-atual">
+      <div class="painel-titulo">📦 Estoque atual</div>
+      <div class="fin-explica">O saldo é calculado pelas entradas e saídas registradas. Toque num material para mudar o tipo dele.</div>
+      <div class="doacao-total">${escapeHtml(textoResumoEstoqueAdm(resumo))}</div>
+      ${itens.some(x => Number(x.quantidade) > 0) ? botaoGerarRelatorio('estoque-adm-atual', [
+        { acao: 'estoque-adm-atual-texto', rotulo: '📋 WhatsApp' },
+        { acao: 'estoque-adm-atual-pdf', rotulo: '📄 PDF' },
+        { acao: 'estoque-adm-atual-imagem', rotulo: '🖼️ Imagem' },
+      ], 'margin-top:10px;') : ''}
+      ${itens.length ? grupos.map(g => grupoMateriais(`${g.tipo.emoji} ${g.tipo.nome}`, g.itens)).join('') : '<div class="empty">Nenhum material cadastrado ainda.</div>'}
+    </div>
   `;
 }
 
@@ -190,6 +278,11 @@ export function renderAdminEstoqueAdm() {
 }
 
 export function atualizarCampoEstoqueAdm(el) {
+  // O nome do "➕ Novo tipo": so lembra, sem redesenhar.
+  if (el.dataset && el.dataset.estoqueAdmTipoNome && state.estoqueAdmTipoCriar) {
+    state.estoqueAdmTipoCriar.nome = el.value;
+    return true;
+  }
   const chave = el.dataset && el.dataset.estoqueAdm;
   const f = state.estoqueAdmForm;
   if (!chave || !f) return false;
@@ -199,7 +292,30 @@ export function atualizarCampoEstoqueAdm(el) {
     el.value = valor;
   }
   f[chave] = valor;
+  // O palpite do tipo acompanha o nome sem redesenhar (senao o teclado do
+  // celular fecharia a cada letra): so acende o botao certo.
+  if (chave === 'materialNome' && !f.materialTipo) {
+    const palpite = palpiteTipoMaterialAdm(valor, tipos());
+    document.querySelectorAll('[data-action="estoque-adm-novo-tipo"]')
+      .forEach(b => b.classList.toggle('active', b.dataset.value === palpite));
+  }
   return true;
+}
+
+function estoqueAtual() { return estoqueAtualAdm(dados().itens); }
+
+// Grava o tipo de um material ja cadastrado: um dos fixos, um criado antes
+// ou um novo (o texto do "➕ Novo tipo").
+async function salvarTipo(id, tipo) {
+  if (state.estoqueAdmSalvando) return;
+  state.estoqueAdmSalvando = true; state.estoqueAdmMsg = null; render();
+  try {
+    const r = await api('estoqueAdmTipo', { id, tipo });
+    state.estoqueAdmDados = { itens:r.itens || [], movimentos:r.movimentos || [] };
+    state.estoqueAdmTipoAberto = null;
+    state.estoqueAdmTipoCriar = null;
+  } catch (e) { state.estoqueAdmMsg = { ok:false, texto:e.message }; }
+  state.estoqueAdmSalvando = false; render();
 }
 
 export const acoes = {
@@ -224,6 +340,7 @@ export const acoes = {
     if (data === null) return;
     if (data > hojeISO()) { state.estoqueAdmMsg = { ok:false, texto:'A data não pode ser no futuro.' }; return render(); }
     if (f.tipo === 'entrada' && f.materialId === 'novo' && !String(f.materialNome).trim()) { state.estoqueAdmMsg = { ok:false, texto:'Escreva o nome do novo material.' }; return render(); }
+    if (f.tipo === 'entrada' && f.materialId === 'novo' && !tipoDoNovo(f)) { state.estoqueAdmMsg = { ok:false, texto:'Escolha o tipo do novo material.' }; return render(); }
     if (!f.materialId) { state.estoqueAdmMsg = { ok:false, texto:'Escolha o material.' }; return render(); }
     if (f.tipo === 'saida' && !f.destinoId) { state.estoqueAdmMsg = { ok:false, texto:'Escolha quem recebeu o material.' }; return render(); }
     state.estoqueAdmSalvando = true; state.estoqueAdmMsg = null; render();
@@ -231,6 +348,7 @@ export const acoes = {
       const r = await api('estoqueAdmMovimentar', {
         tipo:f.tipo, materialId:f.materialId === 'novo' ? '' : f.materialId,
         materialNome:f.materialId === 'novo' ? String(f.materialNome).trim() : '',
+        materialTipo:f.materialId === 'novo' ? tipoDoNovo(f) : '',
         quantidade, data, destinoTipo:f.tipo === 'saida' ? f.destinoTipo : '',
         destinoId:f.tipo === 'saida' ? f.destinoId : '', observacao:String(f.observacao || '').trim(),
       });
@@ -239,6 +357,46 @@ export const acoes = {
       state.estoqueAdmMsg = { ok:true, texto:`${f.tipo === 'entrada' ? 'Entrada' : 'Saída'} registrada com sucesso.` };
     } catch (e) { state.estoqueAdmMsg = { ok:false, texto:e.message }; }
     state.estoqueAdmSalvando = false; render();
+  },
+  'estoque-adm-novo-tipo': async (id, target, action, e) => {
+    state.estoqueAdmForm.materialTipo = target.dataset.value;
+    return render();
+  },
+  // Tocar num material da lista abre (ou fecha) a troca de tipo dele.
+  'estoque-adm-item-abrir': async (id, target, action, e) => {
+    state.estoqueAdmTipoAberto = state.estoqueAdmTipoAberto === id ? null : id;
+    state.estoqueAdmTipoCriar = null;
+    return render();
+  },
+  'estoque-adm-item-tipo': async (id, target, action, e) => salvarTipo(id, target.dataset.value),
+  // "➕ Novo tipo": abre a caixa do nome (ou fecha, num segundo toque).
+  'estoque-adm-tipo-criar-abrir': async (id, target, action, e) => {
+    const aberto = state.estoqueAdmTipoCriar && state.estoqueAdmTipoCriar.id === id;
+    state.estoqueAdmTipoCriar = aberto ? null : { id, nome: '' };
+    state.estoqueAdmMsg = null;
+    return render();
+  },
+  'estoque-adm-tipo-criar-cancelar': async (id, target, action, e) => { state.estoqueAdmTipoCriar = null; return render(); },
+  'estoque-adm-tipo-criar': async (id, target, action, e) => {
+    const c = state.estoqueAdmTipoCriar;
+    if (!c) return;
+    const tipo = textoTipoNovoAdm(c.nome, tipos());
+    if (!tipo) { state.estoqueAdmMsg = { ok:false, texto:'Escreva o nome do novo tipo.' }; return render(); }
+    // No cadastro de material novo, o tipo so vai pra planilha junto com a
+    // entrada. Num material ja cadastrado, grava na hora.
+    if (id === NOVO_MATERIAL) {
+      if (state.estoqueAdmForm) state.estoqueAdmForm.materialTipo = tipo;
+      state.estoqueAdmTipoCriar = null;
+      return render();
+    }
+    return salvarTipo(id, tipo);
+  },
+  // O relatorio rapido da aba Estoque: so o saldo de hoje, sem zerados.
+  'estoque-adm-atual-texto': async (id, target, action, e) => copiarTexto(textoEstoqueAtualAdm(estoqueAtual())),
+  'estoque-adm-atual-pdf': async (id, target, action, e) => imprimirTexto(textoEstoqueAtualAdm(estoqueAtual())),
+  'estoque-adm-atual-imagem': async (id, target, action, e) => {
+    const r = estoqueAtual();
+    return mostrarPreviaImagem(() => imagensEstoqueAtualAdm(r), 'estoque-adm-atual.png');
   },
   'estoque-adm-filtro': async (id, target, action, e) => { state.estoqueAdmFiltroTipo = target.dataset.value; return render(); },
   // O relatorio pro grupo: texto, PDF (o mesmo texto, impresso) e imagem.

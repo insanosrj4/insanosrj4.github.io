@@ -478,6 +478,44 @@ log('=== estoque ADM do Regional: entradas, saidas, saldo e historico ===');
   confere('anular de novo e recusado',
     tentar(() => contexto.executar('estoqueAdmAnular', { ...cred, id:saidaMembro.id })),
     'Este lancamento ja foi anulado');
+
+  confere('material antigo, sem tipo, volta com tipo vazio', r.itens[0].tipo, '');
+  r = contexto.executar('estoqueAdmMovimentar', {
+    ...cred, tipo:'entrada', materialNome:'Colete Amorim', materialTipo:'coletes', quantidade:1, data:daquiA(-1),
+  });
+  confere('material novo grava o tipo escolhido', r.itens.find(x => x.nome === 'Colete Amorim').tipo, 'coletes');
+  r = contexto.executar('estoqueAdmMovimentar', {
+    ...cred, tipo:'entrada', materialNome:'Camisa oficial G', materialTipo:'  Camisas ', quantidade:2, data:daquiA(-1),
+  });
+  confere('material novo com tipo criado grava o texto arrumado', r.itens.find(x => x.nome === 'Camisa oficial G').tipo, 'Camisas');
+  r = contexto.executar('estoqueAdmTipo', { ...cred, id:materialId, tipo:'patches' });
+  confere('"Onde colocar?" grava o tipo sem mexer no saldo',
+    [r.itens.find(x => x.id === materialId).tipo, r.itens.find(x => x.id === materialId).quantidade], ['patches', 9]);
+  r = contexto.executar('estoqueAdmTipo', { ...cred, id:materialId, tipo:'camisas' });
+  confere('tipo criado com outra grafia reaproveita a gravada', r.itens.find(x => x.id === materialId).tipo, 'Camisas');
+  r = contexto.executar('estoqueAdmTipo', { ...cred, id:materialId, tipo:'COLETES' });
+  confere('nome de tipo fixo vira a chave dele', r.itens.find(x => x.id === materialId).tipo, 'coletes');
+  r = contexto.executar('estoqueAdmTipo', { ...cred, id:materialId, tipo:'=Bonés' });
+  confere('comeco de formula e tirado', r.itens.find(x => x.id === materialId).tipo, 'Bonés');
+  confere('trocar tipo pede um tipo',
+    tentar(() => contexto.executar('estoqueAdmTipo', { ...cred, id:materialId, tipo:'   ' })), 'Escolha o tipo do material');
+  confere('trocar tipo de material que nao existe',
+    tentar(() => contexto.executar('estoqueAdmTipo', { ...cred, id:'nao-existe', tipo:'coletes' })), 'Material nao encontrado');
+  confere('trocar tipo sem PIN e recusado', contexto.executar('estoqueAdmTipo', { id:materialId, tipo:'coletes' }).ok, false);
+  confere('trocar tipo de dentro de uma divisao e recusado',
+    tentar(() => contexto.executar('estoqueAdmTipo', { escopo:'barra', pin:'0418', id:materialId, tipo:'coletes' })),
+    'O Estoque ADM e exclusivo do Regional');
+}
+
+log('');
+log('=== estoque ADM: aba antiga, sem a coluna Tipo ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.EstoqueADMItens = novaAba('EstoqueADMItens', [['ID', 'Material', 'Criado em'], ['x1', 'Bandeira RJ4', '01/11/2026']]);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL:'0418' });
+  const r = contexto.executar('estoqueAdmTipo', { escopo:'regional', pin:'0418', id:'x1', tipo:'bandeiras' });
+  confere('a coluna Tipo nasce sozinha e o tipo fica gravado',
+    [p.abas.EstoqueADMItens.dados[0][3], r.itens[0].tipo], ['Tipo', 'bandeiras']);
 }
 
 log('');

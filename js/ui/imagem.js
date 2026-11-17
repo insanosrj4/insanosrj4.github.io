@@ -1522,8 +1522,10 @@ function paginarEstoqueAdm(linhas) {
   return paginas;
 }
 
-function paginaEstoqueAdm(ctx, logo, linhas, r, pagina, paginas) {
-  cabecalhoRelatorio(ctx, logo, '📦 Estoque ADM', 'Regional', `${r.rotuloFiltro}  ·  ${formatDataBR(r.hoje)}`, pagina, paginas, 'RELATÓRIO DO ESTOQUE');
+// `subtitulo` e `topo` mudam entre o relatorio completo (com o filtro) e o
+// rapido da aba Estoque (so o saldo de hoje).
+function paginaEstoqueAdm(ctx, logo, linhas, subtitulo, topo, pagina, paginas) {
+  cabecalhoRelatorio(ctx, logo, '📦 Estoque ADM', 'Regional', subtitulo, pagina, paginas, topo);
   let y = TOPO_DETALHE;
   ctx.textBaseline = 'middle';
   linhas.forEach(l => {
@@ -1599,16 +1601,39 @@ function paginaEstoqueAdm(ctx, logo, linhas, r, pagina, paginas) {
   ctx.textAlign = 'center';
 }
 
-export async function imagensRelatorioEstoqueAdm(r) {
-  const paginas = paginarEstoqueAdm(linhasEstoqueAdm(r));
+async function imagensEstoqueAdm(linhas, subtitulo, topo) {
+  const paginas = paginarEstoqueAdm(linhas);
   const telas = [];
   for (let p = 0; p < paginas.length; p++) {
     const t = await novaTela();
-    paginaEstoqueAdm(t.ctx, t.logo, paginas[p], r, p + 1, paginas.length);
+    paginaEstoqueAdm(t.ctx, t.logo, paginas[p], subtitulo, topo, p + 1, paginas.length);
     rodape(t.ctx);
     telas.push(t.canvas);
   }
   return telas;
+}
+
+export async function imagensRelatorioEstoqueAdm(r) {
+  return imagensEstoqueAdm(linhasEstoqueAdm(r), `${r.rotuloFiltro}  ·  ${formatDataBR(r.hoje)}`, 'RELATÓRIO DO ESTOQUE');
+}
+
+// O relatorio rapido da aba Estoque: um bloco por tipo, com o total do
+// tipo a direita, e so os materiais que tem saldo. `r` vem de
+// estoqueAtualAdm (dominio/estoque-adm.js).
+export async function imagensEstoqueAtualAdm(r) {
+  const linhas = [];
+  const bloco = (texto, itens) => {
+    const total = itens.reduce((s, x) => s + (Number(x.quantidade) || 0), 0);
+    linhas.push({ tipo: 'secao', texto, direita: `${total} un` });
+    itens.forEach(x => linhas.push({ tipo: 'material', x }));
+  };
+  r.grupos.forEach(g => bloco(`${g.tipo.emoji} ${g.tipo.nome}`, g.itens));
+  if (r.semTipo.length) bloco('❓ Sem tipo', r.semTipo);
+  if (!linhas.length) {
+    linhas.push({ tipo: 'secao', texto: '📦 Estoque', direita: '' });
+    linhas.push({ tipo: 'vazio', texto: 'Nenhum material em estoque' });
+  }
+  return imagensEstoqueAdm(linhas, `Saldo de hoje  ·  ${formatDataBR(r.hoje)}`, 'ESTOQUE ATUAL');
 }
 
 // ---------------------------------------------------------------------------

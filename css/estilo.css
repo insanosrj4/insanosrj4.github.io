@@ -2512,6 +2512,34 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .estoque-adm-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .estoque-adm-item b { min-width: 0; overflow-wrap: anywhere; color: var(--white-strong); }
 .estoque-adm-item strong { flex-shrink: 0; color: var(--white-strong); }
+/* A aba Estoque: um card so, com os materiais em linhas finas agrupadas
+   por tipo (Coletes, Bandeiras, Patches, Honrarias). Zerado fica apagado
+   no fim do grupo. Tocar na linha abre a troca de tipo embaixo dela. */
+.estoque-adm-tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.estoque-adm-grupo { margin-top: 16px; }
+.estoque-adm-grupo-titulo {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid var(--line-strong);
+  color: var(--white-strong); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.estoque-adm-grupo-titulo span:last-child { color: var(--text-muted); letter-spacing: 0.02em; }
+.estoque-adm-linha {
+  appearance: none; width: 100%; margin: 0; padding: 9px 2px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: none; border: none; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.estoque-adm-linha span { min-width: 0; overflow-wrap: anywhere; }
+.estoque-adm-linha b { flex-shrink: 0; color: var(--white-strong); }
+.estoque-adm-linha.zerado span, .estoque-adm-linha.zerado b { color: var(--text-muted); font-weight: 500; }
+.estoque-adm-linha.aberta { border-bottom-color: transparent; }
+.estoque-adm-linha:active { background-color: rgba(255, 255, 255, 0.04); }
+.estoque-adm-trocar { padding: 2px 0 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.estoque-adm-tipo-mais { border-style: dashed; }
+.estoque-adm-tipo-criar { margin-top: 8px; }
+.estoque-adm-perguntar { border-left: 3px solid var(--status-justificada); }
+.estoque-adm-perguntar-item { padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.estoque-adm-perguntar-item .estoque-adm-item { margin-bottom: 8px; }
 .estoque-adm-movimento { padding: 12px 14px; margin-bottom: 8px; border-left-width: 3px; }
 .estoque-adm-movimento.entrada { border-left-color: var(--status-confirmado); }
 .estoque-adm-movimento.saida { border-left-color: var(--status-infracional); }

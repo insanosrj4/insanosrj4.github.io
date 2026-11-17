@@ -321,6 +321,11 @@ export let state = {
   estoqueAdmMsg: null,
   estoqueAdmFiltroTipo: 'todos',
   estoqueAdmAnularId: null,
+  // O material da aba Estoque com a troca de tipo aberta (tocou na linha).
+  estoqueAdmTipoAberto: null,
+  // A caixa do "➕ Novo tipo" aberta: { id do material (ou 'material-novo'
+  // no cadastro), nome digitado }.
+  estoqueAdmTipoCriar: null,
 
   // Funcoes especiais (Batedores e Caveiras), so do Regional. A funcao
   // aberta e os eventos dela, que nunca entram em state.events. O evento

@@ -830,7 +830,10 @@ add('entrada/saída / regional abriu barra', { ...mvs, adminEscopo:'regional', m
 add('entrada/saída / carregando',        { ...mvs, adminEscopo:'barra', movimentosDados:null }, T.renderAdmin);
 add('entrada/saída / erro',              { ...mvs, adminEscopo:'barra', movimentosErro:'Sem permissao para os dados desta divisao' }, T.renderAdmin);
 const estoqueAdmDados = {
-  itens:[{ id:'mat1', nome:'Cones', quantidade:7 }, { id:'mat2', nome:'Rádios', quantidade:0 }],
+  itens:[{ id:'mat1', nome:'Cones', quantidade:7 }, { id:'mat2', nome:'Rádios', quantidade:0 },
+    { id:'mat3', nome:'1º Colete Amorim', tipo:'', quantidade:1 }, { id:'mat4', nome:'1º Colete Zeca', tipo:'coletes', quantidade:0 },
+    { id:'mat5', nome:'Patch Grau V', tipo:'patches', quantidade:4 }, { id:'mat6', nome:'Camisa oficial - Brasão', tipo:'Camisas', quantidade:2 },
+    { id:'mat7', nome:'Camisa oficial - M2', tipo:'', quantidade:3 }],
   movimentos:[
     { id:'ea3', data:'2026-10-18', tipo:'saida', materialId:'mat1', material:'Cones', quantidade:3,
       destinoTipo:'membro', destinoId:'m1', destinoNome:'Costa', observacao:'Evento', anulado:false },
@@ -847,6 +850,19 @@ add('estoque ADM / formulario entrada',   { ...eadm, adminTab:'estoque-adm-movim
 add('estoque ADM / formulario saída',     { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
   tipo:'saida', materialId:'mat1', materialNome:'', quantidade:'2', data:'19/10/2026', destinoTipo:'membro', destinoId:'m1', observacao:'' } }, T.renderAdmin);
 add('estoque ADM / estoque atual',        { ...eadm, adminTab:'estoque-adm-estoque' }, T.renderAdmin);
+add('estoque ADM / estoque com tipo aberto', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmTipoAberto:'mat3' }, T.renderAdmin);
+add('estoque ADM / estoque (gerar aberto)', { ...eadm, adminTab:'estoque-adm-estoque', gerarRelatorioAberto:'estoque-adm-atual' }, T.renderAdmin);
+add('estoque ADM / estoque todo com tipo', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmDados:{ itens:[
+  { id:'b1', nome:'Bandeira RJ4', tipo:'', quantidade:2 }, { id:'h1', nome:'Medalha 3 anos', tipo:'', quantidade:0 }], movimentos:[] } }, T.renderAdmin);
+add('estoque ADM / novo tipo (perguntando)', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmTipoCriar:{ id:'mat1', nome:'Bonés' } }, T.renderAdmin);
+add('estoque ADM / novo tipo (linha aberta)', { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmTipoAberto:'mat6', estoqueAdmTipoCriar:{ id:'mat6', nome:'' } }, T.renderAdmin);
+add('estoque ADM / novo tipo no cadastro', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmTipoCriar:{ id:'material-novo', nome:'Adesivos' }, estoqueAdmForm:{
+  tipo:'entrada', materialId:'novo', materialNome:'Adesivo RJ4', materialTipo:'', quantidade:'1', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'' } }, T.renderAdmin);
+add('estoque ADM / cadastro com tipo criado escolhido', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
+  tipo:'entrada', materialId:'novo', materialNome:'Adesivo RJ4', materialTipo:'Adesivos', quantidade:'1', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'' } }, T.renderAdmin);
+add('estoque ADM / estoque vazio',        { ...eadm, adminTab:'estoque-adm-estoque', estoqueAdmDados:{ itens:[], movimentos:[] } }, T.renderAdmin);
+add('estoque ADM / material novo sem palpite', { ...eadm, adminTab:'estoque-adm-movimentar', estoqueAdmForm:{
+  tipo:'entrada', materialId:'novo', materialNome:'Rádio', materialTipo:'', quantidade:'1', data:'19/10/2026', destinoTipo:'divisao', destinoId:'barra', observacao:'' } }, T.renderAdmin);
 add('estoque ADM / relatório',            { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'todos' }, T.renderAdmin);
 add('estoque ADM / relatório entradas',   { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'entrada' }, T.renderAdmin);
 add('estoque ADM / relatório (gerar aberto)', { ...eadm, adminTab:'estoque-adm-relatorio', estoqueAdmFiltroTipo:'saida', gerarRelatorioAberto:'estoque-adm-relatorio' }, T.renderAdmin);
@@ -999,7 +1015,7 @@ const LIMPO = {
   grauMembroId:null, grauEscolhido:null, cargoEscolhido:null, grauSalvando:false, grauErro:null, preencherEntradasIds:null, entradasRascunho:{}, entradasSalvando:false, entradasMsg:null,
   movimentosDados:null, movimentosDadosEscopo:null, movimentosErro:null, movimentosPeriodo:0, movimentosDivisaoAberta:null,
   estoqueAdmDados:null, estoqueAdmCarregando:false, estoqueAdmErro:null, estoqueAdmForm:null,
-  estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null,
+  estoqueAdmSalvando:false, estoqueAdmMsg:null, estoqueAdmFiltroTipo:'todos', estoqueAdmAnularId:null, estoqueAdmTipoAberto:null, estoqueAdmTipoCriar:null,
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,

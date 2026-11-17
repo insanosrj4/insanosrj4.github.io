@@ -28,7 +28,9 @@ const { mascaraData, dataISOdeBR, formatDataBR } = await import(url('nucleo/util
 const { eventosProximos, semResposta } = await import(url('dominio/pendencias.js'));
 const { state: st } = await import(url('nucleo/estado.js'));
 const { hojeISO } = await import(url('nucleo/util.js'));
-const { quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm, filtrarMovimentosEstoqueAdm, relatorioEstoqueAdm, textoRelatorioEstoqueAdm } = await import(url('dominio/estoque-adm.js'));
+const { quantidadeEstoqueAdm, resumoEstoqueAdm, textoResumoEstoqueAdm, filtrarMovimentosEstoqueAdm, relatorioEstoqueAdm, textoRelatorioEstoqueAdm,
+  palpiteTipoMaterialAdm, tipoDoMaterialAdm, gruposEstoqueAdm, estoqueAtualAdm, textoEstoqueAtualAdm,
+  tiposMaterialAdm, textoTipoNovoAdm } = await import(url('dominio/estoque-adm.js'));
 const { alertasHonrarias, dataDaHonraria, textoPrazoHonraria } = await import(url('dominio/honrarias.js'));
 
 let falhas = 0;
@@ -69,6 +71,46 @@ confere('filtro tudo preserva o livro', filtrarMovimentosEstoqueAdm(movAdm, 'tod
   confere('relatório: material zerado aparece', tT.includes('• *Rádios*: zerado'), true);
   const tE = textoRelatorioEstoqueAdm(relatorioEstoqueAdm(itensR, movR, 'entrada', '2026-11-11'));
   confere('relatório: filtro de entradas não fala de saída', [tE.includes('Só entradas'), tE.includes('🔴')], [true, false]);
+}
+{
+  confere('tipo pelo nome',
+    ['1º Colete Amorim', 'Bandeira RJ4', 'Patch Grau III', 'Vírgula', 'Patch Caveira', 'Medalha 3 anos', 'Rádio'].map(n => palpiteTipoMaterialAdm(n)),
+    ['coletes', 'bandeiras', 'patches', 'patches', 'patches', 'honrarias', '']);
+  confere('"1º Colete Caveira" é colete, não patch', palpiteTipoMaterialAdm('1º Colete Caveira'), 'coletes');
+  confere('o tipo gravado vale mais que o palpite', tipoDoMaterialAdm({ nome:'Colete', tipo:'honrarias' }), 'honrarias');
+  confere('tipo criado gravado vale mais que o palpite', tipoDoMaterialAdm({ nome:'Colete', tipo:'Camisas' }), 'Camisas');
+  const comCriado = tiposMaterialAdm([{ nome:'Camisa oficial G', tipo:'Camisas' }, { nome:'Boné', tipo:' camisas ' }, { nome:'X', tipo:'Coletes' }]);
+  confere('tipos: os 4 fixos e o criado uma vez só, sem repetir "Coletes"',
+    comCriado.map(t => t.chave), ['coletes', 'bandeiras', 'patches', 'honrarias', 'Camisas']);
+  confere('material novo parecido entra no tipo criado (singular ou plural)',
+    ['Camisa oficial - M2', 'Camisas pretas', 'Rádio'].map(n => palpiteTipoMaterialAdm(n, comCriado)), ['Camisas', 'Camisas', '']);
+  confere('o palpite fixo vem antes do criado', palpiteTipoMaterialAdm('Camisa caveira', comCriado), 'patches');
+  confere('novo tipo: arruma o texto e não duplica um que já existe',
+    [textoTipoNovoAdm('  Bonés   da  RJ4 '), textoTipoNovoAdm('COLETES'), textoTipoNovoAdm('camisas', comCriado), textoTipoNovoAdm('   ')],
+    ['Bonés da RJ4', 'coletes', 'Camisas', '']);
+  {
+    const gC = gruposEstoqueAdm([{ id:'c1', nome:'Camisa oficial - Brasão', tipo:'Camisas', quantidade:2 },
+      { id:'c2', nome:'Camisa oficial - M2', tipo:'', quantidade:3 }, { id:'p', nome:'Patch', tipo:'', quantidade:1 }]);
+    confere('tipo criado vira grupo no fim, e o parecido entra nele sozinho',
+      gC.grupos.map(g => [g.tipo.chave, g.tipo.emoji, g.itens.map(i => i.id)]), [['patches', '🏷️', ['p']], ['Camisas', '📦', ['c1', 'c2']]]);
+    confere('nada fica perguntando', gC.semTipo, []);
+  }
+  const itensT = [
+    { id:'1', nome:'1º Colete Zeca', quantidade:0 }, { id:'2', nome:'1º Colete Amorim', quantidade:1 },
+    { id:'3', nome:'Patch Grau V', quantidade:4 }, { id:'4', nome:'Rádio', quantidade:2 },
+    { id:'5', nome:'Bandeira', quantidade:0 },
+  ];
+  const g = gruposEstoqueAdm(itensT);
+  confere('grupos na ordem dos tipos, com saldo antes do zerado',
+    g.grupos.map(x => [x.tipo.chave, x.itens.map(i => i.id)]), [['coletes', ['2','1']], ['bandeiras', ['5']], ['patches', ['3']]]);
+  confere('o que não entendeu fica em semTipo', g.semTipo.map(x => x.id), ['4']);
+  const rapido = estoqueAtualAdm(itensT, '2026-11-17');
+  confere('relatório rápido sem zerados', rapido.grupos.map(x => x.tipo.chave), ['coletes', 'patches']);
+  const tR = textoEstoqueAtualAdm(rapido);
+  confere('relatório rápido: grupos, sem tipo e total',
+    [tR.includes('*🦺 COLETES* (1 un)'), tR.includes('• Patch Grau V: 4 un'), tR.includes('*❓ SEM TIPO* (2 un)'), tR.includes('Zeca'), tR.includes('_3 materiais · 7 unidades_')],
+    [true, true, true, false, true]);
+  confere('relatório rápido vazio', textoEstoqueAtualAdm(estoqueAtualAdm([{ id:'1', nome:'Colete', quantidade:0 }], '2026-11-17')).includes('Nenhum material em estoque.'), true);
 }
 
 log('');

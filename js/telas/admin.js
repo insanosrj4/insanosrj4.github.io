@@ -235,6 +235,8 @@ export async function abrirAbaOrganizador(aba) {
   // O Relatorio 10 dias do ADM abre sempre no periodo de hoje.
   if (aba.startsWith('movimentos') && entrandoNaSecao) state.movimentosRelatorioInicio = null;
   state.estoqueAdmAnularId = null;
+  state.estoqueAdmTipoAberto = null;
+  state.estoqueAdmTipoCriar = null;
   state.pretendenteAberto = null;
   fecharCarteirinha();
   state.acaoSocialIdeiaForm = null;

@@ -1301,6 +1301,39 @@ cards lado a lado, Entrada e Saída, e mostra apenas o formulário escolhido.
   fica fora do relatório, mas continua na lista da tela. O texto sai de
   `textoRelatorioEstoqueAdm` e a imagem de `imagensRelatorioEstoqueAdm`, que
   pagina quando a lista não cabe. O Code.gs não mudou.
+- **A aba Estoque virou um card só** (17/11/2026). Antes era um card grande
+  por material, e 25 materiais enchiam várias telas. Agora os materiais
+  aparecem em linhas finas, agrupados por **tipo**: 🦺 Coletes,
+  🚩 Bandeiras, 🏷️ Patches (graus, vírgula, caveira) e 🎖️ Honrarias.
+  Dentro de cada grupo vêm primeiro os que têm saldo e depois os zerados,
+  apagados, em ordem alfabética (`gruposEstoqueAdm`).
+- **O tipo vem do nome ou de uma pergunta.** `palpiteTipoMaterialAdm` lê o
+  nome: "colete" vai para Coletes (antes de "caveira", porque "1º Colete
+  Caveira" é o colete do Caveira), "bandeira" para Bandeiras,
+  "honraria"/"medalha" para Honrarias e "patch"/"grau"/"vírgula"/"caveira"
+  para Patches. Não existe "Outros": o que o app não entende aparece num
+  card **❓ Onde colocar?** no topo, com os 4 botões, até alguém escolher.
+  A escolha fica gravada na coluna **Tipo** de `EstoqueADMItens`, que é
+  acrescentada sozinha, e vale mais que o palpite. Tocar numa linha da
+  lista abre a troca de tipo. Ao cadastrar material novo, o tipo vem
+  marcado pelo palpite, que acompanha a digitação sem redesenhar a tela.
+  Sem palpite, a escolha é obrigatória.
+- **➕ Novo tipo** (17/11/2026): onde se escolhe o tipo, também dá para
+  criar um tipo com o nome que se quiser ("Camisas"). Não existe cadastro
+  de tipos à parte: o tipo criado é o próprio texto na coluna Tipo, e
+  existe enquanto algum material o usa (`tiposMaterialAdm`). Ele vira um
+  grupo 📦 depois dos 4 fixos, e um material com nome parecido, no singular
+  ou no plural, entra nele sozinho ("Camisa oficial M2" vai para
+  "Camisas"). O palpite dos fixos vem antes. O Code.gs arruma o texto
+  (`tipoMaterialArrumado`): "COLETES" vira o fixo, "camisas" reaproveita
+  "Camisas" se ele já existe, o texto tem até 30 letras e começo de
+  fórmula é tirado.
+- **Relatório rápido na aba Estoque:** o **📊 Gerar relatório** do card,
+  com 📋 WhatsApp, 📄 PDF e 🖼️ Imagem, traz só o saldo de hoje, por tipo e
+  **sem os zerados** (`estoqueAtualAdm`, `textoEstoqueAtualAdm` e
+  `imagensEstoqueAtualAdm`). O relatório completo continua na aba Relatório.
+- Ação nova `estoqueAdmTipo`, com a mesma guarda das outras. **Precisa do
+  Code.gs na versão `2026-11-17-estoque-adm-tipos`.**
 
 ## A convocação: o app lê e escreve
 
