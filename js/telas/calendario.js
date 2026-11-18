@@ -56,6 +56,7 @@ export function renderCalendario(app) {
         <div class="alert-msg" style="white-space:pre-wrap;">${escapeHtml(state.calendarioMarcarAviso)}</div>
       </div>
     ` : ''}
+    <div class="pc-colunas"><div>
     <div class="card calendario-card">
       <div class="calendario-cabecalho">
         <button class="btn ghost" data-action="calendario-mes-anterior">‹</button>
@@ -93,6 +94,7 @@ export function renderCalendario(app) {
         `).join('')}
       </div>
     </div>
+    </div><div>
     <button class="btn block" style="margin-top:14px;" data-action="calendario-gerar-imagem">🖼️ Gerar imagem</button>
     <div class="row-gap" style="margin-top:10px; align-items:center;">
       <button class="btn secondary" style="flex:1;" data-action="calendario-copiar-texto">📋 Copiar pro WhatsApp</button>
@@ -100,6 +102,7 @@ export function renderCalendario(app) {
               aria-pressed="${state.calendarioDiasVazios ? 'true' : 'false'}">${state.calendarioDiasVazios ? '☑️' : '☐'} Relatar dias vazios</button>
     </div>
     <button class="btn secondary block" style="margin-top:14px;" data-action="abrir-calendario-organizar">🗂️ Organizar</button>
+    </div></div>
     ${folhaDoDia(marcacoesEscopo)}
   `;
 }

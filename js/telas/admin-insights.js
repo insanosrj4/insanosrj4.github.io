@@ -265,7 +265,7 @@ export function renderAdminInsights() {
     <div class="alert info" style="margin-bottom:16px;">
       <div class="alert-msg">Marque quem fez o insight nessa rodada e confirme no final. Quem não participa mais, use "Remover da lista".</div>
     </div>
-    ${blocoMarcacao}
+    <div class="pc-fluxo">${blocoMarcacao}</div>
     ${state.insightMostrarDataCustom ? `
       <div class="card" style="margin-bottom:10px;">
         ${campoData({ id: 'insight-data-field', rotulo: 'Data da rodada', valor: state.insightDataEscolhida, estilo: 'margin-bottom:0;' })}

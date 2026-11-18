@@ -96,7 +96,7 @@ export function renderAdminEventos() {
   // so com ele: todo o resto da aba fica fora do papel.
   const parcialAberto = eventos.some(ev => ev.status !== 'encerrado' && ev.id === state.expandedReportEventId);
   return `
-    <div class="${parcialAberto ? 'no-print' : ''}">
+    <div class="pc-colunas ${parcialAberto ? 'no-print' : ''}"><div>
     <button class="btn block" data-action="start-new-event" style="margin-bottom: 10px;">+ Criar evento</button>
     ${podeGerarPlanilha ? `
       <button class="btn secondary block on-photo" data-action="gerar-relatorio" style="margin-bottom: 6px;" ${rel === 'gerando' ? 'disabled' : ''}>
@@ -105,9 +105,10 @@ export function renderAdminEventos() {
       ${rel === 'ok' ? '<div class="alert ok" style="margin-bottom:16px;"><div class="alert-msg">✅ Relatório atualizado na aba <b>Relatorio</b> da planilha.</div></div>' : ''}
       ${rel === 'erro' ? `<div class="alert" style="margin-bottom:16px;"><div class="alert-title">Não consegui gerar</div><div class="alert-msg">${escapeHtml(state.relatorioErro || '')}.</div></div>` : ''}
     ` : ''}
+    </div><div>
     ${renderExportarPdfAdmin()}
-    </div>
-    ${eventos.length === 0 ? '<div class="empty">Nenhum evento ativo.<br>Os encerrados ficam na aba Encerrados.</div>' : eventos.map(ev => {
+    </div></div>
+    ${eventos.length === 0 ? '<div class="empty">Nenhum evento ativo.<br>Os encerrados ficam na aba Encerrados.</div>' : '<div class="pc-grade">' + eventos.map(ev => {
       const memberCount = ev.memberIds.length;
       const cor = corTipoEvento(ev.tipo);
       const estiloFundo = fundoDoCard(ev);
@@ -135,7 +136,7 @@ export function renderAdminEventos() {
           ${comParcial ? renderRelatorioParcial(ev) : ''}
         </div>
       `;
-    }).join('')}
+    }).join('') + '</div>'}
   `;
 }
 
@@ -223,6 +224,7 @@ function renderEventForm() {
   const campoF = (chave, extra) => `data-evf="${chave}" ${extra || ''}`;
   return `
     <div class="etapas-form" id="etapas-form">${etapasDoFormulario()}</div>
+    <div class="pc-colunas"><div>
     ${quadroDestino()}
     <div class="card">
       <div class="field" style="margin-bottom:0;">
@@ -256,6 +258,7 @@ function renderEventForm() {
       </div>
     `)}
 
+    </div><div>
     ${quadroRoteiro({ campos: ch, attr: 'data-evc', acaoAdicionarPe: 'adicionar-evento-pe', acaoRemoverPe: 'remover-evento-pe' })}
 
     <div class="card">
@@ -286,6 +289,7 @@ function renderEventForm() {
         <button class="btn secondary" data-action="cancel-new-event">Cancelar</button>
       </div>
     </div>
+    </div></div>
   `;
 }
 
@@ -403,7 +407,7 @@ export function renderAdminRelatorio() {
 
   // Com o "Gerar relatorio" de um evento aberto, o PDF sai so com ele.
   const menuAberto = encerrados.some(ev => state.gerarRelatorioAberto === 'encerrado:' + ev.id);
-  return `<div class="${menuAberto ? 'no-print' : ''}">${aviso}</div>` + encerrados.map(ev => {
+  return `<div class="${menuAberto ? 'no-print' : ''}">${aviso}</div><div class="pc-grade">` + encerrados.map(ev => {
     const carregado = ev.id in state.reportData;
     const counts = computeCounts(ev);
     const total = ev.memberIds.length;
@@ -441,7 +445,7 @@ export function renderAdminRelatorio() {
         <div class="no-print">${renderExcluirEvento(ev)}</div>
       </div>
     `;
-  }).join('');
+  }).join('') + '</div>';
 }
 
 // Excluir so aparece aqui, na aba Relatorio, onde so entram eventos ja

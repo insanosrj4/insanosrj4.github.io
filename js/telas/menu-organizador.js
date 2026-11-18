@@ -390,7 +390,9 @@ export function renderMenuOrganizador(app) {
         <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
       </div>
       <div class="rotulo-secao">Ferramentas</div>
-      ${secoesVisiveis(area.chave).map(cardSecao).join('')}
+      <div class="menu-org-ferramentas">
+        ${secoesVisiveis(area.chave).map(cardSecao).join('')}
+      </div>
     `;
     return;
   }
@@ -403,10 +405,16 @@ export function renderMenuOrganizador(app) {
       <h1 style="font-size: 20px;">Organizador</h1>
       <div class="count-box">${escapeHtml(escopoPorChave(state.adminEscopo).nome.toUpperCase())}</div>
     </div>
-    ${muralDeAvisos()}
-    ${state.adminEscopo === 'regional' ? cardObrigatoriedades() : ''}
-    <div class="rotulo-secao">Áreas</div>
-    ${areasVisiveis().map(cardArea).join('')}
+    <div class="menu-org-colunas">
+      <div class="menu-org-avisos">
+        ${muralDeAvisos()}
+        ${state.adminEscopo === 'regional' ? cardObrigatoriedades() : ''}
+      </div>
+      <div class="menu-org-areas">
+        <div class="rotulo-secao">Áreas</div>
+        ${areasVisiveis().map(cardArea).join('')}
+      </div>
+    </div>
   `;
 }
 

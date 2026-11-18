@@ -169,6 +169,7 @@ function painel(d) {
   return `
     ${aviso()}
     ${d.saldoInicial ? '' : cardDefinirSaldo()}
+    <div class="pc-colunas"><div>
     <div class="card">
       <div class="painel-titulo">💼 Caixa da ${escapeHtml(escopoPorChave(state.adminEscopo).nome)}</div>
       <div class="fin-saldo${r.saldoAtual < 0 ? ' negativo' : ''}" data-anima="fin-saldo:${r.saldoAtual}">
@@ -192,8 +193,10 @@ function painel(d) {
       </div>
     </div>
     ${barrasPorMes(r.porMes)}
+    </div><div>
     ${saidasPorCategoria(r, false)}
     ${extrato(r.extrato, { limite: state.caixinhaFinQtdExtrato })}
+    </div></div>
   `;
 }
 

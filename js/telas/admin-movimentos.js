@@ -104,6 +104,7 @@ function relatorioDivisao(movimentos, chave) {
     : '';
   return `
     ${voltar}
+    <div class="pc-colunas"><div>
     <div class="card">
       <div class="painel-titulo">🔄 ${escapeHtml(escopoPorChave(chave).nome)}</div>
       ${pilulas()}
@@ -118,6 +119,7 @@ function relatorioDivisao(movimentos, chave) {
       ])}
       <div class="info-line" style="padding:6px 0 0; color:var(--text-muted); font-size:11.5px;">O motivo não vai no texto, no PDF nem na imagem.</div>
     </div>
+    </div><div>
     ${r.afastadosAgora.length ? `
       <div class="card" style="padding: 4px 16px;">
         <div class="division-subheader"><span>⏸️ AFASTADOS AGORA</span><span class="division-counts">${r.afastadosAgora.length}</span></div>
@@ -141,6 +143,7 @@ function relatorioDivisao(movimentos, chave) {
         ? r.linhaDoTempo.map(linhaMovimento).join('')
         : `<div class="empty">Nenhuma movimentação ${state.movimentosPeriodo ? 'nesse período' : 'registrada ainda'}.<br>Afastamento, transferência e desligamento se registram no cadastro de Membros.</div>`}
     </div>
+    </div></div>
   `;
 }
 
@@ -148,6 +151,7 @@ function quadro(movimentos) {
   const q = quadroRegional(movimentos, state.roster, state.movimentosPeriodo);
   const paraFora = { n: q.total.sairamDaRJ4, rotulo: 'Para outra regional', detalhe: '' };
   return `
+    <div class="pc-colunas"><div>
     <div class="card">
       <div class="painel-titulo">🔄 Entrada e saída — RJ4</div>
       ${pilulas()}
@@ -160,6 +164,7 @@ function quadro(movimentos) {
         { acao: 'imagem-quadro-movimentos', rotulo: '🖼️ Imagem' },
       ])}
     </div>
+    </div><div>
     <div class="card" style="padding: 4px 16px;">
       <div class="division-subheader"><span>POR DIVISÃO</span><span class="division-counts">🟢 · ⏸️ · 🚪 · 🔁</span></div>
       ${q.linhas.map(l => `
@@ -177,6 +182,7 @@ function quadro(movimentos) {
         </div>
       `).join('')}
     </div>
+    </div></div>
   `;
 }
 

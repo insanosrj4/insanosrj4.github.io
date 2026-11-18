@@ -204,6 +204,7 @@ function painel(d) {
   return `
     ${aviso()}
     ${botoesItens(d, item)}
+    <div class="pc-colunas"><div>
     <div class="card">
       <div class="painel-titulo">📦 Estoque da ${escapeHtml(nome)}</div>
       <div class="fin-subtitulo">${emojiItem(item)} ${escapeHtml(item.nome)}</div>
@@ -229,8 +230,10 @@ function painel(d) {
     </div>
     ${barrasPorMes(r.serie, item.medida)}
     ${blocoOrigemDestino(r, regional)}
+    </div><div>
     ${todosOsItens(d)}
     ${extrato(r.extrato, { limite: state.estoqueQtdExtrato })}
+    </div></div>
   `;
 }
 

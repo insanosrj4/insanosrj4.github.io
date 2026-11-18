@@ -238,7 +238,17 @@ const ESQUELETO = `
   </div>
 `;
 
+// Qual tela esta aberta, no #app (data-tela) - so o CSS do layout de PC
+// (html.pc-largo) usa, pra alargar as telas que ja foram ajustadas.
+function telaAtual() {
+  if (state.loading || state.loadError) return '';
+  if (state.view === 'admin') return 'admin:' + (state.adminTab || '');
+  if (state.view === 'admin-menu') return state.organizadorArea ? 'area' : 'menu-org';
+  return state.view || '';
+}
+
 function desenhar(app) {
+  if (app.dataset) app.dataset.tela = telaAtual();
   if (state.loading) {
     app.innerHTML = ESQUELETO;
     return;

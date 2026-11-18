@@ -14,6 +14,11 @@ import { carregarDoacoesDoRelatorio, loadReportData } from '../dados/carregar.js
 import { analisarConvocacao, confirmarEventoParseado, iniciarCorrecaoConvocacao } from '../fluxos/convocacao.js';
 import { render } from '../nucleo/render.js';
 
+// Os dois filtros lado a lado no PC (layout largo), quando os dois aparecem.
+function filtrosLadoALado(a, b) {
+  return a && b ? `<div class="pc-colunas"><div>${a}</div><div>${b}</div></div>` : (a || '') + (b || '');
+}
+
 function renderRelatorioFiltroDivisao() {
   if (state.adminEscopo !== 'regional' || !ABAS_COM_FILTRO_DIVISAO.includes(state.relatorioTab)) return '';
   const opcoes = [{ chave: 'todas', nome: 'Todas as divisões' }].concat(escoposEmOrdemDeExibicao());
@@ -172,8 +177,7 @@ export function renderRelatorioShell(app) {
     <div class="abas-grade no-print">
       ${RELATORIO_TABS.map(t => `<div class="tab ${state.relatorioTab === t.chave ? 'active' : ''}" data-action="relatorio-tab" data-tab="${t.chave}">${rotuloAba(t.chave)}</div>`).join('')}
     </div>
-    ${renderRelatorioFiltroDivisao()}
-    ${renderRelatorioFiltroPeriodo()}
+    ${filtrosLadoALado(renderRelatorioFiltroDivisao(), renderRelatorioFiltroPeriodo())}
     ${conteudo}
   `;
 }

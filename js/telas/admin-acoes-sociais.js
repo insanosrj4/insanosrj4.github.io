@@ -55,10 +55,12 @@ function renderAgenda() {
   const placar = SITUACOES_ACAO.map(s => `<span class="acao-placar-item">${s.emoji} ${r.porSituacao[s.chave]} ${s.rotulo.toLowerCase()}${r.porSituacao[s.chave] === 1 ? '' : 's'}</span>`).join('');
   return `
     ${cardRascunho()}
+    <div class="pc-colunas"><div>
     <div class="card no-print acao-rotina">
       <div class="painel-titulo">📌 Rotina do Social</div>
       ${ROTINA_SOCIAL.map(l => `<div class="acao-rotina-linha">${escapeHtml(l)}</div>`).join('')}
     </div>
+    </div><div>
     <div class="card">
       <div class="acao-ano no-print">
         <button class="btn secondary" data-action="acao-social-ano" data-value="${ano - 1}" aria-label="Ano anterior">‹</button>
@@ -80,8 +82,9 @@ function renderAgenda() {
       </button>
       ${state.acoesSociaisLegenda ? renderLegenda() : ''}
     </div>
+    </div></div>
     ${avisoErro()}
-    ${mesesDoAno(ano).map((mes, i) => renderMes(mes, i)).join('')}
+    <div class="pc-grade">${mesesDoAno(ano).map((mes, i) => renderMes(mes, i)).join('')}</div>
   `;
 }
 

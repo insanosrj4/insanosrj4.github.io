@@ -195,10 +195,12 @@ export function renderEvent(app) {
       <div class="back-link on-photo" data-action="voltar-do-evento">‹ Todos os eventos</div>
       <div class="barra-fixa-nome">${escapeHtml(ev.nome)}</div>
     </div>
+    <div class="pc-colunas"><div>
     ${renderCapaEvento(ev, members, confirmados)}
     ${renderInfoEvento(ev)}
     ${renderAta(ev)}
     ${renderStatusBanner()}
+    </div><div>
     ${members.length >= MINIMO_PRA_BUSCA ? `
       <input id="busca-membro" class="busca-membro" type="search" placeholder="🔎 Ache seu nome…"
         value="${escapeHtml(state.buscaMembro || '')}" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -212,6 +214,7 @@ export function renderEvent(app) {
         ${state.atualizandoStatus ? '<span class="girando">🏍️</span> Atualizando…' : '↻ Atualizar respostas'}
       </div>
     ` : ''}
+    </div></div>
     <div class="legend">
       ⚠️ Aguardando confirmação &nbsp; ✅ Presença confirmada<br>
       ❌ Falta (Família) &nbsp; ❌ Falta (Trabalho)<br>

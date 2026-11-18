@@ -16,7 +16,7 @@ import { salvarDoacoes } from '../fluxos/doacoes-caixinha.js';
 import { corTipoEvento, doacoesDesde, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, formatDataCurta, hexParaRgba, imprimirTexto, mostrarAviso, normalizarBusca } from '../nucleo/util.js';
+import { copiarTexto, escapeHtml, formatDataCurta, imprimirTexto, mostrarAviso, normalizarBusca } from '../nucleo/util.js';
 import { botaoGerarRelatorio, linhaFuncoes, medalha, posicoesDoPodio, selinhoIniciais } from '../ui/comuns.js';
 import { esqueletoLista, renderDonutChart, renderSparklineTendencia } from '../ui/graficos.js';
 import { imagemDoacoes, mostrarPreviaImagem } from '../ui/imagem.js';
@@ -41,40 +41,52 @@ function aviso() {
 
 // ---------- aba "Por evento" ----------
 
-function cardEvento(ev) {
+// O Por evento em duas colunas (18/11/2026, no jeito do Relatorio do
+// Estoque ADM): ativos a esquerda, encerrados a direita, as duas do mesmo
+// tamanho e com a lista rolando por dentro. Cada evento e uma linha fina:
+// o emoji do tipo, o nome e, embaixo, a data e as doacoes.
+function linhaEvento(ev) {
   const cor = corTipoEvento(ev.tipo);
   const kg = somaKg(ev.doacoes);
   const doadores = Object.keys(ev.doacoes).length;
   const levaram = ev.confirmados.filter(id => ev.doacoes[id]).length;
   const externas = (ev.externas || []).length;
   const resumo = (doadores
-    ? `🥫 <b style="color:var(--white-strong);">${formatKg(kg)}</b> · ${doadores} ${doadores === 1 ? 'levou' : 'levaram'}`
-    : (externas ? '' : 'Nenhuma doação marcada'))
+    ? `🥫 <b>${formatKg(kg)}</b> · ${doadores} ${doadores === 1 ? 'levou' : 'levaram'}`
+    : (externas ? '' : 'Nenhuma doação'))
     + (externas ? `${doadores ? ' · ' : ''}🤝 ${externas} de fora` : '');
   // Do lado da regra: dos ✅ do evento, quantos levaram. So faz sentido
   // depois que o evento acontece.
   const regra = ev.status === 'encerrado' && ev.confirmados.length
-    ? ` · ${levaram} de ${ev.confirmados.length} confirmados`
+    ? ` · ${levaram} de ${ev.confirmados.length} ✅`
     : '';
   return `
-    <div class="card event-card doacao-evento" style="background-color:${ev.tipo ? hexParaRgba(cor, 0.12) : ''}; border-left:3px solid ${cor};" data-action="abrir-doacoes-evento" data-id="${ev.id}">
-      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-        ${ev.tipo ? `<div class="tipo-home-icone" style="border-color:${cor}; flex-shrink:0;">${emojiTipoEvento(ev.tipo)}</div>` : ''}
-        <div style="min-width:0;">
-          <div class="name">${escapeHtml(ev.nome)}</div>
-          <div class="meta">${ev.data ? escapeHtml(formatDataCurta(ev.data)) + ' · ' : ''}${resumo}${regra}</div>
-        </div>
+    <button class="doacao-evento-linha" style="border-left-color:${cor};" data-action="abrir-doacoes-evento" data-id="${escapeHtml(ev.id)}">
+      ${ev.tipo ? `<span class="doacao-evento-emoji">${emojiTipoEvento(ev.tipo)}</span>` : ''}
+      <span class="doacao-evento-nome">${escapeHtml(ev.nome)}</span>
+      <small>${ev.data ? escapeHtml(formatDataCurta(ev.data)) + ' · ' : ''}${resumo}${regra}</small>
+    </button>
+  `;
+}
+
+function colunaEventos(tipo, lista) {
+  const ativos = tipo === 'ativos';
+  return `
+    <div class="card estoque-adm-coluna ${ativos ? 'entrada' : 'encerrados'}">
+      <div class="estoque-adm-coluna-titulo">${ativos ? '🟢 Ativos' : '🏁 Encerrados'}</div>
+      <div class="estoque-adm-coluna-total">${lista.length} ${lista.length === 1 ? 'evento' : 'eventos'}</div>
+      <div class="estoque-adm-coluna-lista" data-rolagem="doacoes-${tipo}">
+        ${lista.length ? lista.map(linhaEvento).join('') : `<div class="estoque-adm-coluna-vazia">${ativos ? 'Nenhum evento ativo.' : 'Nenhum encerrado ainda.'}</div>`}
       </div>
-      <div class="arrow">›</div>
     </div>
   `;
 }
 
 function listaEventos(d) {
   const ordenados = d.eventos.slice().sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-  const ativos = ordenados.filter(e => e.status !== 'encerrado');
+  // Ativos do mais perto pro mais longe; encerrados do mais recente pro antigo.
+  const ativos = ordenados.filter(e => e.status !== 'encerrado').reverse();
   const encerrados = ordenados.filter(e => e.status === 'encerrado');
-  const visiveis = encerrados.slice(0, state.doacoesQtdEncerrados);
   if (!ordenados.length) {
     const desde = doacoesDesde(state.adminEscopo);
     return `<div class="empty">Nenhum evento ${desde ? 'desde ' + escapeHtml(formatDataCurta(desde)) : 'desta divisão'} ainda.<br>Os eventos aparecem aqui assim que forem criados.</div>`;
@@ -83,11 +95,10 @@ function listaEventos(d) {
     <div class="alert info" style="margin-bottom:14px;">
       <div class="alert-msg">Toque num evento pra marcar quem levou alimento. A regra do clube é 1 kg em todo evento.</div>
     </div>
-    ${ativos.length ? `<div class="rotulo-secao">Ativos</div>${ativos.map(cardEvento).join('')}` : ''}
-    ${encerrados.length ? `<div class="rotulo-secao">Encerrados</div>${visiveis.map(cardEvento).join('')}` : ''}
-    ${encerrados.length > visiveis.length ? `
-      <button class="btn ghost block" data-action="doacoes-mais-eventos" style="margin-bottom:16px;">Mostrar mais antigos (${encerrados.length - visiveis.length})</button>
-    ` : ''}
+    <div class="estoque-adm-colunas colunas-largas">
+      ${colunaEventos('ativos', ativos)}
+      ${colunaEventos('encerrados', encerrados)}
+    </div>
   `;
 }
 
@@ -176,6 +187,7 @@ function painelMarcar(ev) {
   const total = kgs.reduce((s, k) => s + k, 0);
   return `
     <div class="btn ghost" style="margin-bottom:10px;" data-action="fechar-doacoes-evento">‹ Voltar aos eventos</div>
+    <div class="pc-colunas"><div>
     <div class="card" style="border-left:3px solid ${corTipoEvento(ev.tipo)};">
       <div class="nome-evento-card">${ev.tipo ? emojiTipoEvento(ev.tipo) + ' ' : ''}${escapeHtml(ev.nome)}</div>
       <div style="color:var(--text-muted); font-size:12.5px; margin-top:5px;">${escapeHtml(dataDoEvento(ev))}${ev.status === 'encerrado' ? ' · encerrado' : ' · ativo'}</div>
@@ -193,12 +205,14 @@ function painelMarcar(ev) {
       ${listaMarcar(ev, membros)}
       <div class="empty busca-vazia" hidden>Ninguém com esse nome por aqui.</div>
     </div>
+    </div><div>
     ${cardExternas()}
     ${cardLista(ev)}
     <div class="row-gap" style="margin-bottom:16px;">
       <button class="btn block" data-action="salvar-doacoes" ${state.doacoesSalvando ? 'disabled' : ''}>${state.doacoesSalvando ? 'Salvando…' : '✅ Salvar doações'}</button>
       <button class="btn secondary block" data-action="fechar-doacoes-evento" ${state.doacoesSalvando ? 'disabled' : ''}>Cancelar</button>
     </div>
+    </div></div>
   `;
 }
 
@@ -488,12 +502,13 @@ function renderRankRegional(r, porDivisao) {
       ` : ''}
     `;
   }).join('');
-  return cardTotalRank(r) + `
+  // No PC (layout largo): o grafico de um lado, as divisoes do outro.
+  return `<div class="pc-colunas"><div>${cardTotalRank(r)}</div><div>` + `
     <div class="card" style="padding: 4px 16px;">
       <div class="division-subheader"><span>🏁 POR DIVISÃO</span><span class="division-counts">nos eventos do Regional</span></div>
       ${porDivisao.length ? linhas : '<div class="empty">Nenhum integrante cadastrado.</div>'}
     </div>
-  `;
+  </div></div>`;
 }
 
 function renderRank(d) {
@@ -516,7 +531,7 @@ function renderRank(d) {
     </div>
   ` : '';
 
-  return cardTotalRank(r) + lista + melhorar;
+  return `<div class="pc-colunas"><div>${cardTotalRank(r)}</div><div>${lista}${melhorar}</div></div>`;
 }
 
 export function renderAdminDoacoes() {
@@ -640,10 +655,6 @@ export const acoes = {
   'doacao-externa-tirar': async (id, target, action, e) => {
     state.doacoesExternas.splice(Number(target.dataset.value), 1);
     state.doacoesExternas = comLinhaVazia(state.doacoesExternas);
-    return render();
-  },
-  'doacoes-mais-eventos': async (id, target, action, e) => {
-    state.doacoesQtdEncerrados += 10;
     return render();
   },
   'doacoes-periodo': async (id, target, action, e) => {

@@ -344,12 +344,15 @@ function conteudoRelatorio() {
     return '<div class="alert info"><div class="alert-msg">Montando o relatório…</div></div>';
   }
   return `
+    <div class="pc-colunas"><div>
     ${filtroPeriodo()}
+    </div><div>
     ${botaoGerarRelatorio('relind', [
       { acao: 'copiar-relatorio-individual', rotulo: state.relIndCopiado ? 'Copiado ✓' : '📋 WhatsApp' },
       { acao: 'imprimir-relind', rotulo: '📄 PDF' },
       { acao: 'imagem-relind', rotulo: '🖼️ Imagem' },
     ], 'margin-bottom:14px;')}
+    </div></div>
     ${geradoEm()}
     ${relatorioDoMembro(state.relIndDados)}
   `;

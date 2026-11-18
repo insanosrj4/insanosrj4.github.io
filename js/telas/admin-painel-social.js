@@ -72,6 +72,7 @@ export function renderAdminPainelSocial() {
   const reunioes = reunioesSociaisDoMes(state.events, chaveDoMes(ano, mes));
   return `
     ${avisoDaBusca()}
+    <div class="pc-colunas"><div>
     <div class="card calendario-card">
       <div class="calendario-cabecalho">
         <button class="btn ghost" data-action="painel-social-mes" data-value="-1" aria-label="Mês anterior">‹</button>
@@ -84,8 +85,10 @@ export function renderAdminPainelSocial() {
     ${state.painelSocialForm ? formularioRegistrar() : '<button class="btn block no-print" style="margin-bottom:14px;" data-action="painel-social-form-abrir">➕ Registrar evento</button>'}
     ${listaDoMes(q)}
     ${listaDeReunioes(reunioes, q.nomeMes)}
+    </div><div>
     ${cardDivisoes(q)}
     ${cardObrigatorias(ano)}
+    </div></div>
     ${cardAno(ano)}
   `;
 }

@@ -160,6 +160,7 @@ export function renderConvocacao(app) {
       <div class="sub">${escapeHtml(ev.nome)}</div>
     </div>
 
+    <div class="pc-colunas"><div>
     ${quadroTipoTela(ev)}
     ${quadroInformacoes(ev)}
     ${quadroRoteiroTela()}
@@ -168,6 +169,7 @@ export function renderConvocacao(app) {
     ${quadroTextoEditavel(6, 'Regras do clube', 'regras')}
     ${quadroTextoEditavel(7, 'Atenção', 'atencao')}
     ${quadroResponsavel()}
+    </div><div class="pc-lateral-fixa">
 
     <div class="card">
       <div style="font-weight:600; margin-bottom:8px;">Prévia</div>
@@ -181,6 +183,7 @@ export function renderConvocacao(app) {
     <button class="btn block" data-action="copiar-convocacao">
       ${state.convocacaoCopiado ? '✓ Copiado!' : '📋 Copiar chamada'}
     </button>
+    </div></div>
   `;
 
   // A prévia é atualizada na mão, sem redesenhar a tela: um render() a cada

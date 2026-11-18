@@ -42,11 +42,11 @@ export function renderAdminCarteirinhas() {
   if (!membros.length) return '<div class="empty">Nenhum membro cadastrado ainda.</div>';
   const topo = state.carteirinhasExportar ? topoSelecao(membros) : topoLista();
   if (state.adminEscopo !== 'regional') {
-    return topo + gruposPorGrau(membrosDoEscopo()).map(g => `
+    return topo + '<div class="pc-grade">' + gruposPorGrau(membrosDoEscopo()).map(g => `
       <div class="card lista-cadastro">${blocoGrau(state.adminEscopo, g)}</div>
-    `).join('');
+    `).join('') + '</div>';
   }
-  return topo + escoposEmOrdemDeExibicao().map(e => {
+  return topo + '<div class="pc-fluxo">' + escoposEmOrdemDeExibicao().map(e => {
     const doEscopo = membrosDe(e);
     const aberto = state.carteirinhasDivisoesAbertas.has(e.chave);
     return `
@@ -60,7 +60,7 @@ export function renderAdminCarteirinhas() {
           : '<div class="empty">Nenhum integrante cadastrado.</div>') : ''}
       </div>
     `;
-  }).join('');
+  }).join('') + '</div>';
 }
 
 // Quem esta na lista: os da divisao, ou - no Regional - os de todas, na

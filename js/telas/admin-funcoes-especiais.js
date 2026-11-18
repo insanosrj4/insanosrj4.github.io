@@ -294,7 +294,7 @@ function renderEventos(encerrados) {
       ${aviso()}
       ${state.funcoesForm ? renderFormulario() : encerrados ? '' : `<button class="btn block no-print" style="margin-bottom:14px;" data-action="funcao-novo-evento">＋ Novo evento dos ${escapeHtml(fe.nome)}</button>`}
     </div>
-    ${lista.length ? lista.map(ev => cardEvento(ev, menuAberto)).join('') : vazio}
+    ${lista.length ? `<div class="pc-grade">${lista.map(ev => cardEvento(ev, menuAberto)).join('')}</div>` : vazio}
   `;
 }
 
@@ -382,6 +382,7 @@ function renderEstatisticas() {
     <div class="${menuEvento ? 'no-print' : ''}">
       ${pilulasPeriodo()}
       ${cabecalhoImpressao(fe, '')}
+      <div class="pc-colunas"><div>
       <div class="card donut-card donut-card-total">
         <div class="painel-titulo">${fe.selo} Presença dos ${escapeHtml(fe.nome)}</div>
         <div class="fin-explica">${escapeHtml(rotuloPeriodoMovimentos(state.funcoesPeriodo))} · ${r.eventos} ${r.eventos === 1 ? 'evento encerrado' : 'eventos encerrados'} · ${g.confirmados} de ${g.convites} presenças</div>
@@ -392,10 +393,12 @@ function renderEstatisticas() {
           { acao: 'funcao-imagem-estatisticas', rotulo: '🖼️ Imagem' },
         ])}
       </div>
+      </div><div>
       ${r.porMes.length > 1 ? `<div class="card"><div class="painel-titulo">📅 Mês a mês</div>${barrasPorMes(r.porMes)}</div>` : ''}
+      </div></div>
       <div class="painel-titulo" style="margin-top:6px;">Por evento</div>
     </div>
-    ${r.porEvento.map(({ ev, c }) => cardEventoEstatisticas(ev, c, menuEvento)).join('')}
+    <div class="pc-grade">${r.porEvento.map(({ ev, c }) => cardEventoEstatisticas(ev, c, menuEvento)).join('')}</div>
   `;
 }
 
@@ -418,10 +421,10 @@ function renderIndividuais() {
         { acao: 'funcao-imagem-individuais', rotulo: '🖼️ Imagem' },
       ])}
     </div>
-    ${r.porIntegrante.map((p, i) => linhaPct(
+    <div class="pc-grade">${r.porIntegrante.map((p, i) => linhaPct(
       `${medalha(lugares[i])}${escapeHtml(p.nome)}${p.grau ? ` <span class="grade-box">${escapeHtml(p.grau)}</span>` : ''}`,
       `${escapeHtml(divisaoCurta(p.divisao))} · ${p.confirmados} de ${p.eventos} ${p.eventos === 1 ? 'evento' : 'eventos'}${p.justificadas ? ` · ❌ ${p.justificadas}` : ''}${p.naoJustificadas ? ` · ${soFalta(state.funcaoEspecial) ? '❌' : '⭕'} ${p.naoJustificadas}` : ''}`,
-      p.pct)).join('')}
+      p.pct)).join('')}</div>
   `;
 }
 

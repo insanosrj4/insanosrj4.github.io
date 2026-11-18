@@ -43,6 +43,7 @@ export function renderAdminPresencas() {
     <div class="alert info" style="margin-bottom:16px;">
       <div class="alert-msg">Percentual de presença nos eventos já encerrados de ${escapeHtml(escopoPorChave(state.adminEscopo).nome)}. Quem entrou depois de um evento não é contado nele.</div>
     </div>
+    <div class="pc-grade">
     ${lista.map(m => {
       if (m.percentual === null) {
         return `
@@ -65,6 +66,7 @@ export function renderAdminPresencas() {
         </div>
       `;
     }).join('')}
+    </div>
   `;
 }
 
@@ -197,6 +199,7 @@ export function renderAdminMembros() {
   if (state.preencherEntradasIds) return blocoDatasDeIngresso(membros);
   return `
     ${editando ? '' : blocoDatasDeIngresso(membros)}
+    <div class="pc-colunas"><div>
     <div class="card">
       ${editando ? '<label style="display:block; margin-bottom:8px; color:var(--text-muted); font-size:12px;">Editando membro</label>' : ''}
       <div class="field">
@@ -230,7 +233,9 @@ export function renderAdminMembros() {
         <button class="btn block" data-action="add-member">+ Adicionar membro</button>
       `}
     </div>
+    </div><div>
     ${membros.length === 0 ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : blocosPorGrau(membros)}
+    </div></div>
   `;
 }
 

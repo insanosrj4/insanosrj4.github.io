@@ -120,7 +120,8 @@ function renderRankConteudo(d) {
     { acao: 'pdf-rank', rotulo: '📄 PDF' },
     { acao: 'imagem-rank', rotulo: '🖼️ Imagem' },
   ], 'margin:-4px 0 16px;');
-  return cardTotal + blocoDivisoes + botaoImagem + blocoMembros;
+  // No PC (layout largo): o placar das divisoes de um lado, os integrantes do outro.
+  return `<div class="pc-colunas"><div>${cardTotal}${blocoDivisoes}${botaoImagem}</div><div>${blocoMembros}</div></div>`;
 }
 
 // Acoes do Rank de Presenca.

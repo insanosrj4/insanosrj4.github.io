@@ -98,6 +98,7 @@ function renderFicha(p) {
   const novo = p.situacao !== SITUACAO_ANALISE;
   return `
     <div class="back-link on-photo no-print" data-action="fechar-pretendente">‹ Voltar à lista</div>
+    <div class="pc-fluxo">
     <div class="card pret-cabeca">
       <div class="pret-cabeca-topo">
         <div>
@@ -133,7 +134,8 @@ function renderFicha(p) {
             <div class="pret-dado-rotulo">${escapeHtml(l.rotulo)}</div>
             <div class="pret-dado-valor">${escapeHtml(l.valor || '-')}</div>
           </div>`).join('')}
-      </div>`).join('')}`;
+      </div>`).join('')}
+    </div>`;
 }
 
 // ---------- a aba ----------
@@ -143,7 +145,8 @@ export function renderAdminPretendentes() {
   if (state.pretendentesErro) return `${cardLink()}<div class="alert"><div class="alert-msg">Não deu pra buscar as fichas: ${escapeHtml(state.pretendentesErro)}.</div></div>`;
   const aberto = state.pretendenteAberto && doId(state.pretendenteAberto);
   if (aberto) return renderFicha(aberto);
-  return cardLink() + renderLista();
+  // No PC (layout largo): os links de um lado, as fichas do outro.
+  return `<div class="pc-colunas"><div>${cardLink()}</div><div>${renderLista()}</div></div>`;
 }
 
 export const acoes = {

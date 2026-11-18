@@ -1077,7 +1077,7 @@ const LIMPO = {
   relIndCopiado:false, relIndSelecionando:false, relIndMarcados:new Set(), relIndVarios:null,
   relIndVariosCarregando:false, relIndVariosErro:null, obrigatoriedadeAberta:null, calendarioDiasVazios:false,
   doacoesDados:null, doacoesDadosEscopo:null, doacoesErro:null, doacoesEventoId:null, doacoesMarcacoes:{}, doacoesExternas:[],
-  doacoesMsg:null, doacoesSalvando:false, doacoesQtdEncerrados:8, doacoesPeriodo:0,
+  doacoesMsg:null, doacoesSalvando:false, doacoesPeriodo:0,
   estoqueItemId:null, estoqueForm:null, estoqueSalvando:false, estoqueMsg:null, estoqueRelatorio:false, estoquePeriodo:0,
   estoqueAnularId:null, estoqueQtdExtrato:15,
   caixinhaDados:null, caixinhaDadosEscopo:null, caixinhaErro:null, caixinhaMes:null, caixinhaMembroIds:[],

@@ -2619,6 +2619,29 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 @media print { .estoque-adm-coluna { height: auto; } .estoque-adm-coluna-lista { overflow: visible; } }
 .estoque-adm-coluna.entrada { border-top-color: var(--status-confirmado); }
 .estoque-adm-coluna.saida { border-top-color: var(--status-infracional); }
+.estoque-adm-coluna.encerrados { border-top-color: var(--line-strong); }
+/* Em tela larga (computador) as colunas saem da largura do app (480px)
+   e crescem ate 860px, centradas - assim o nome do evento cabe em uma ou
+   duas linhas. No celular nada muda: a conta da a propria largura do app. */
+.colunas-largas {
+  --largura-colunas: min(860px, calc(100vw - 32px));
+  width: var(--largura-colunas);
+  margin-left: calc((100% - var(--largura-colunas)) / 2);
+  gap: 12px;
+}
+@media (max-width: 519px) { .colunas-largas { width: auto; margin-left: 0; gap: 8px; } }
+/* Doacoes > Por evento (18/11/2026): um evento por linha, nas colunas. */
+.doacao-evento-linha {
+  appearance: none; width: 100%; margin: 0 0 6px; padding: 8px 8px 8px 9px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 7px; row-gap: 3px; align-items: center;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-left: 3px solid var(--line-strong);
+  border-radius: 6px; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.doacao-evento-linha:active { background-color: rgba(255, 255, 255, 0.07); }
+.doacao-evento-emoji { font-size: 15px; line-height: 1; }
+.doacao-evento-nome { color: var(--white-strong); font-size: 12.5px; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.doacao-evento-linha small { grid-column: 1 / -1; color: var(--text-muted); font-size: 11px; line-height: 1.35; overflow-wrap: anywhere; }
+.doacao-evento-linha small b { color: var(--white-strong); }
 .estoque-adm-coluna-titulo { color: var(--white-strong); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .estoque-adm-coluna-total { margin: 3px 0 6px; padding-bottom: 7px; border-bottom: 1px solid var(--line-strong); color: var(--text-muted); font-size: 11.5px; }
 .estoque-adm-coluna-vazia { padding: 10px 0; color: var(--text-muted); font-size: 12.5px; }
@@ -3233,3 +3256,70 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 a.btn { text-decoration: none; }
 /* O link do site do M.C. nas observacoes da ficha: dourado, sublinhado. */
 .ficha-link { color: #E7C77E; text-decoration: underline; font-weight: 600; word-break: break-all; }
+
+/* ====================================================================
+   LAYOUT DE PC (18/11/2026)
+   So vale com a chave ligada (<html class="pc-largo">, no index.html) e
+   em tela de computador (900px ou mais). No celular nada daqui vale.
+   Cada tela entra aqui quando e ajustada, pelo data-tela do #app (ver
+   telaAtual no app.js) - tela que nao esta na lista fica como sempre foi.
+   ==================================================================== */
+@media (min-width: 900px) {
+  .pc-largo #app:is(
+    [data-tela="menu-org"], [data-tela="area"],
+    [data-tela^="admin:doacoes"], [data-tela^="admin:painel-social"], [data-tela^="admin:acoes-sociais"],
+    /* Etapa 2: ADM */
+    [data-tela^="admin:caixinha"], [data-tela^="admin:estoque-adm"], [data-tela^="admin:movimentos"],
+    [data-tela="admin:membros"], [data-tela="admin:presencas"], [data-tela="admin:carteirinhas"], [data-tela="admin:pretendentes"],
+    /* Etapa 3: Operacional */
+    [data-tela="admin:eventos"], [data-tela="admin:encerrados"], [data-tela^="admin:insights"], [data-tela^="admin:funcoes"],
+    [data-tela="relatorio"], [data-tela="relatorio-individual"], [data-tela="convocacao"],
+    /* Etapa 4: o que todo integrante ve */
+    [data-tela="home"], [data-tela="event"], [data-tela="rank"], [data-tela="rank-insights"],
+    [data-tela="calendario"], [data-tela="calendario-divisoes"], [data-tela="admin-divisoes"], [data-tela="registro"]
+  ) { max-width: 1000px; }
+
+  /* Abas e cabecalho continuam do tamanho de antes, a esquerda: esticadas
+     em 1000px ficariam botoes enormes. */
+  .pc-largo #app[data-tela^="admin:"] .tabs { max-width: 620px; }
+
+  /* Menu do organizador: avisos a esquerda, areas a direita - cada coluna
+     do tamanho do celular, entao as artes das areas nao mudam. */
+  .pc-largo #app[data-tela="menu-org"] .menu-org-colunas {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; align-items: start;
+  }
+  /* Areas (ADM, Operacional, Social): as ferramentas em duas colunas. */
+  .pc-largo #app[data-tela="area"] .menu-org-ferramentas {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; align-items: start;
+  }
+  /* Os dois blocos genericos do layout de PC, que as telas usam:
+     .pc-colunas = dois lados (cada filho e uma coluna);
+     .pc-grade = uma lista de cards que vira duas colunas. No celular sao
+     divs comuns, sem efeito nenhum. */
+  .pc-largo .pc-colunas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 20px; align-items: start; }
+  .pc-largo .pc-colunas > div > :first-child { margin-top: 0; }
+  .pc-largo .pc-grade { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 14px; align-items: start; }
+  /* .pc-fluxo = duas colunas que enchem de cima pra baixo (sem buraco
+     quando um card abre e cresce - as Carteirinhas por divisao). */
+  .pc-largo .pc-fluxo { columns: 2; column-gap: 14px; }
+  .pc-largo .pc-fluxo > * { break-inside: avoid; }
+  /* .pc-lateral-fixa = a coluna da direita que acompanha a rolagem (a
+     previa da Criar chamada fica a vista enquanto se preenche). */
+  .pc-largo .pc-lateral-fixa { position: sticky; top: 16px; }
+  .pc-largo .pc-lateral-fixa .convocacao-previa { max-height: calc(100vh - 280px); overflow-y: auto; }
+  /* A tela inicial (home-raiz) ja tinha o tamanho dela (990px) - fica. */
+  .pc-largo #app[data-tela="home"]:has(> .home-raiz) { max-width: 990px; }
+  /* As listas de escolher (divisoes, tipos, eventos - do integrante, do
+     Modo organizador e do Calendario): os cards em duas colunas; o resto
+     (voltar, titulo) na largura toda. O RJ4 e o "Todos os eventos" ficam
+     inteiros, em cima. */
+  .pc-largo #app:is([data-tela="home"]:not(:has(> .home-raiz)), [data-tela="admin-divisoes"], [data-tela="calendario-divisoes"]) {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 14px; align-content: start;
+  }
+  .pc-largo #app:is([data-tela="home"]:not(:has(> .home-raiz)), [data-tela="admin-divisoes"], [data-tela="calendario-divisoes"]) > * { grid-column: 1 / -1; }
+  .pc-largo #app:is([data-tela="home"]:not(:has(> .home-raiz)), [data-tela="admin-divisoes"], [data-tela="calendario-divisoes"]) > .event-card { grid-column: auto; }
+  .pc-largo #app:is([data-tela="home"]:not(:has(> .home-raiz)), [data-tela="admin-divisoes"], [data-tela="calendario-divisoes"]) > :is(.card-regional-home, .tipo-home-card[data-value="todos"]) { grid-column: 1 / -1; }
+  .pc-largo #app:is([data-tela="home"]:not(:has(> .home-raiz)), [data-tela="admin-divisoes"], [data-tela="calendario-divisoes"]) > .back-link { justify-self: start; }
+  /* O Por evento das Doacoes ja usa a largura toda do app agora. */
+  .pc-largo #app[data-tela^="admin:doacoes"] .colunas-largas { width: auto; margin-left: 0; }
+}

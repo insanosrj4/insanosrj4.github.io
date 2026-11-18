@@ -240,8 +240,6 @@ export let state = {
   doacoesSalvando: false,
   // { ok, texto } - o aviso depois de salvar, na lista de eventos.
   doacoesMsg: null,
-  // Quantos encerrados aparecem na lista (cresce no "Mostrar mais antigos").
-  doacoesQtdEncerrados: 8,
   // Janela do rank, em meses (0 = desde sempre). Ver PERIODOS.
   doacoesPeriodo: 3,
   // No Rank do Regional: a divisao aberta, com os integrantes (o nome dela,

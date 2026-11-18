@@ -114,8 +114,11 @@ function cardMesLancado(l) {
 function listaMeses(d) {
   return `
     ${aviso()}
+    <div class="pc-colunas"><div>
     ${gradeMeses()}
+    </div><div>
     ${d.meses.length ? `<div class="rotulo-secao">Meses lançados</div>${d.meses.map(cardMesLancado).join('')}` : '<div class="empty">Nenhum mês lançado ainda.<br>Escolha um mês acima pra começar.</div>'}
+    </div></div>
   `;
 }
 
@@ -279,7 +282,7 @@ function renderRank(d) {
   `;
 
   if (!r.meses.length) {
-    return cardTotal + `<div class="empty">Nenhum mês lançado ${state.caixinhaPeriodo ? 'nesse período' : 'ainda'}.</div>`;
+    return `<div class="pc-colunas"><div>${cardTotal}</div><div>` + `<div class="empty">Nenhum mês lançado ${state.caixinhaPeriodo ? 'nesse período' : 'ainda'}.</div></div></div>`;
   }
 
   const lista = `
@@ -302,7 +305,8 @@ function renderRank(d) {
       `).join('')}
     </div>
   `;
-  return cardTotal + lista;
+  // No PC (layout largo): o grafico de um lado, a lista do outro.
+  return `<div class="pc-colunas"><div>${cardTotal}</div><div>${lista}</div></div>`;
 }
 
 export function renderAdminCaixinha() {

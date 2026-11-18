@@ -219,9 +219,12 @@ function renderMovimentar() {
   // O formulario vem logo abaixo dos botoes; o mes a mes, depois dele.
   return `
     ${aviso()}
+    <div class="pc-colunas"><div>
     ${painelMovimentar(p)}
+    </div><div>
     ${state.estoqueAdmForm ? formularioMovimento() : ''}
     ${p.meses.length ? barrasPorMes(p.meses) : ''}
+    </div></div>
   `;
 }
 
@@ -281,7 +284,9 @@ function renderEstoqueAtual() {
   const { grupos, semTipo } = gruposEstoqueAdm(itens);
   return `
     ${aviso()}
+    <div class="${semTipo.length ? 'pc-colunas' : ''}"><div>
     ${perguntarTipo(semTipo)}
+    </div><div>
     <div class="card estoque-adm-atual">
       <div class="painel-titulo">📦 Estoque atual</div>
       <div class="fin-explica">O saldo é calculado pelas entradas e saídas registradas. Toque num tipo para abrir a lista, e num material para mudar o tipo dele.</div>
@@ -293,6 +298,7 @@ function renderEstoqueAtual() {
       ], 'margin-top:10px;') : ''}
       ${itens.length ? grupos.map(g => grupoMateriais(g.tipo, g.itens)).join('') : '<div class="empty">Nenhum material cadastrado ainda.</div>'}
     </div>
+    </div></div>
   `;
 }
 
