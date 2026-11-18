@@ -25,6 +25,9 @@ export let state = {
   // O que esta digitado na busca "Ache seu nome" da tela de evento. Filtra
   // a lista sem redesenhar (ver aplicarBusca, em ui/comuns.js).
   buscaMembro: '',
+  // A ATA da reuniao dos sociais sendo escrita: { eventoId, texto } ou null.
+  ataRascunho: null,
+  ataSalvando: false,
   // O painel de status que ACABOU de abrir - so nesse redesenho ele entra
   // deslizando; nos seguintes (cada toque redesenha) ele ja esta aberto.
   pickerAbrindo: null,

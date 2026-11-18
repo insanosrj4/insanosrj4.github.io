@@ -212,6 +212,8 @@ export function camposDoEvento(ev) {
   const c = { tipo: ev.tipo || '', horario: comoHora(ev.horario) };
   // Metadado do evento no JSON ja persistido. Preservar ao editar a chamada.
   METADADOS_DO_EVENTO.forEach(k => { if (typeof ch[k] === 'boolean') c[k] = ch[k]; });
+  // A ATA da reuniao dos sociais: editar o evento nao pode apagar.
+  if (typeof ch.ata === 'string' && ch.ata) c.ata = ch.ata;
   CAMPOS_GUARDADOS.forEach(k => { c[k] = String(ch[k] || ''); });
   // Subtítulo em branco é o nome do evento, como nas sugestões.
   if (!c.subtitulo.trim()) c.subtitulo = String(ev.nome || '').trim();
@@ -233,6 +235,8 @@ export function chamadaParaGuardar(campos) {
   const c = campos || {};
   const fora = {};
   METADADOS_DO_EVENTO.forEach(k => { if (typeof c[k] === 'boolean') fora[k] = c[k]; });
+  // A ATA da reuniao dos sociais (18/11/2026): texto livre, so quando tem.
+  if (typeof c.ata === 'string' && c.ata.trim()) fora.ata = c.ata.trim();
   CAMPOS_GUARDADOS.forEach(k => { fora[k] = String(c[k] || '').trim(); });
   fora.pes = (c.pes || [])
     .map(pe => {

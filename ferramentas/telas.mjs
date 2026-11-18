@@ -363,6 +363,22 @@ add('painel social / registrar reunião (com erro)', { ...ps, events:[], roster:
 add('painel social / registrar reunião (ninguém com cargo)', { ...ps, events:[], roster:[],
   painelSocialForm:psForm({ oQue:'reuniao' }) }, T.renderAdmin);
 add('painel social / calendário com reunião', { ...ps, roster:rosterSociais, events:[evSocial('barra', 2, 'ativo'), evReuniao] }, T.renderAdmin);
+// 📝 A ATA da reuniao (18/11/2026): o Regional escreve; o resto so le.
+const evComAta = { ...evReuniao, chamada:{ ...evReuniao.chamada, ata:'Presentes: todos. Natal dia 20/12.' } };
+add('evento / reunião dos sociais com ATA (Regional)', { ...ps, roster:rosterSociais, events:[evComAta], currentEventId:'ps-reuniao' }, (app) => {
+  T.renderEvent(app);
+  if (!app.innerHTML.includes('id="ata-texto"')) throw new Error('faltou a caixa da ATA');
+  if (!app.innerHTML.includes('Natal dia 20/12')) throw new Error('a ATA salva nao veio na caixa');
+});
+add('evento / reunião dos sociais com ATA (integrante)', { roster:rosterSociais, events:[evComAta], currentEventId:'ps-reuniao', isAdmin:false, adminEscopo:null }, (app) => {
+  T.renderEvent(app);
+  if (app.innerHTML.includes('id="ata-texto"')) throw new Error('integrante nao escreve a ATA');
+  if (!app.innerHTML.includes('Natal dia 20/12')) throw new Error('integrante nao leu a ATA');
+});
+add('evento / reunião sem ATA (integrante)', { roster:rosterSociais, events:[evReuniao], currentEventId:'ps-reuniao', isAdmin:false, adminEscopo:null }, (app) => {
+  T.renderEvent(app);
+  if (app.innerHTML.includes('ATA da reuni')) throw new Error('caixa vazia apareceu pro integrante');
+});
 add('painel social / relatório 10 dias com reunião', { ...ps, adminTab:'painel-social-relatorio', relatorioSocialInicio:null,
   roster:rosterSociais, events:[evReuniao] }, T.renderAdmin);
 add('painel social / registrar (vazio)', { ...ps, events:[], painelSocialForm:psForm() }, T.renderAdmin);

@@ -3,8 +3,11 @@
 import { FUNCOES, corTipoEvento, emojiTipoEvento, escopoPorChave } from '../nucleo/config.js';
 import { getMemberStatus, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
-import { escapeHtml, formatDataBR, linkify, ordenarPorHierarquia, pastilhaQuando } from '../nucleo/util.js';
-import { resumoDoEvento } from '../dominio/convocacao.js';
+import { copiarTexto, escapeHtml, formatDataBR, linkify, mostrarAviso, ordenarPorHierarquia, pastilhaQuando } from '../nucleo/util.js';
+import { chamadaParaGuardar, camposDoEvento, resumoDoEvento } from '../dominio/convocacao.js';
+import { ehReuniaoDosSociais } from '../dominio/painel-social.js';
+import { paramsDeEvento } from '../fila/presenca.js';
+import { salvarOuAvisar } from '../dados/carregar.js';
 import { renderHome } from './home.js';
 import { anelConfirmados, renderConfirmadoRow, renderListaMembros, renderStatusBanner, subtituloDoEvento } from '../ui/comuns.js';
 import { render } from '../nucleo/render.js';
@@ -85,6 +88,61 @@ function renderInfoEvento(ev) {
   `;
 }
 
+// A ATA da reuniao dos sociais (18/11/2026, pedido do Social Regional):
+// uma caixa livre na tela da reuniao. Fica no JSON da chamada do evento
+// (sem coluna nova), entao todos os convocados leem; so o Regional, no
+// Modo organizador, escreve e salva.
+function podeEscreverAta() {
+  return state.isAdmin && state.adminEscopo === 'regional';
+}
+
+function textoDaAta(ev) {
+  return (ev.chamada && typeof ev.chamada.ata === 'string') ? ev.chamada.ata : '';
+}
+
+function renderAta(ev) {
+  if (!ehReuniaoDosSociais(ev)) return '';
+  const salvo = textoDaAta(ev);
+  if (!podeEscreverAta()) {
+    if (!salvo) return '';
+    return `
+      <div class="card" style="margin-bottom: 16px;">
+        <div class="painel-titulo">📝 ATA da reunião</div>
+        <div class="info-line" style="white-space: pre-wrap;">${linkify(salvo)}</div>
+      </div>
+    `;
+  }
+  const r = state.ataRascunho && state.ataRascunho.eventoId === ev.id ? state.ataRascunho.texto : salvo;
+  const mudou = r.trim() !== salvo.trim();
+  const travado = state.ataSalvando ? 'disabled' : '';
+  return `
+    <div class="card no-print" style="margin-bottom: 16px;">
+      <div class="painel-titulo">📝 ATA da reunião</div>
+      <div class="fin-explica">O que foi falado e decidido. Os convocados leem aqui, na tela da reunião.</div>
+      <textarea id="ata-texto" data-ata="${escapeHtml(ev.id)}" rows="10" style="width:100%; margin-top:6px;"
+        placeholder="Presentes, pauta, decisões, próximos passos…">${escapeHtml(r)}</textarea>
+      <div class="row-gap" style="margin-top:10px;">
+        <button class="btn" style="flex:1;" data-action="ata-salvar" data-id="${escapeHtml(ev.id)}" ${travado}>${state.ataSalvando ? 'Salvando…' : (mudou || !salvo ? '💾 Salvar ATA' : '✓ ATA salva')}</button>
+        <button class="btn secondary" style="flex:1;" data-action="ata-copiar" data-id="${escapeHtml(ev.id)}" ${r.trim() ? '' : 'disabled'}>📋 WhatsApp</button>
+      </div>
+    </div>
+  `;
+}
+
+// O que vai pro WhatsApp: nome, data e o texto.
+function ataParaWhatsApp(ev, texto) {
+  const cab = [`📝 *ATA - ${String(ev.nome || '').trim()}*`, [ev.data ? formatDataBR(ev.data) : '', ev.horario || ''].filter(Boolean).join(' · ')]
+    .filter(Boolean).join('\n');
+  return `${cab}\n\n${texto.trim()}`;
+}
+
+// A caixa so lembra o digitado (a tela redesenha a cada toque).
+export function atualizarCampoAta(el) {
+  if (!el.dataset || !el.dataset.ata) return false;
+  state.ataRascunho = { eventoId: el.dataset.ata, texto: el.value };
+  return true;
+}
+
 // A busca "Ache seu nome" so aparece em lista que da trabalho rolar.
 const MINIMO_PRA_BUSCA = 10;
 
@@ -139,6 +197,7 @@ export function renderEvent(app) {
     </div>
     ${renderCapaEvento(ev, members, confirmados)}
     ${renderInfoEvento(ev)}
+    ${renderAta(ev)}
     ${renderStatusBanner()}
     ${members.length >= MINIMO_PRA_BUSCA ? `
       <input id="busca-membro" class="busca-membro" type="search" placeholder="🔎 Ache seu nome…"
@@ -194,6 +253,29 @@ export const acoes = {
   },
   'atualizar-confirmacoes': async (id, target, action, e) => {
     return atualizarConfirmacoes();
+  },
+  'ata-salvar': async (id, target, action, e) => {
+    const ev = state.events.find(x => x.id === id);
+    if (!ev || state.ataSalvando || !podeEscreverAta()) return;
+    const texto = state.ataRascunho && state.ataRascunho.eventoId === id ? state.ataRascunho.texto : textoDaAta(ev);
+    // Mantem tudo o que ja esta na chamada (as marcas, o destino) e troca so a ATA.
+    const chamada = chamadaParaGuardar({ ...camposDoEvento(ev), ata: texto });
+    state.ataSalvando = true;
+    render();
+    const ok = await salvarOuAvisar('eventoSalvar', { ...paramsDeEvento(ev), chamada }, { post: true });
+    state.ataSalvando = false;
+    if (ok) {
+      state.events = state.events.map(x => x.id === id ? { ...x, chamada } : x);
+      state.ataRascunho = null;
+    }
+    render();
+    if (ok) mostrarAviso('📝 ATA salva');
+  },
+  'ata-copiar': async (id, target, action, e) => {
+    const ev = state.events.find(x => x.id === id);
+    if (!ev) return;
+    const texto = state.ataRascunho && state.ataRascunho.eventoId === id ? state.ataRascunho.texto : textoDaAta(ev);
+    if (texto.trim()) await copiarTexto(ataParaWhatsApp(ev, texto));
   },
   'toggle-confirmados': async (id, target, action, e) => {
     state.view = 'confirmados'; return render();

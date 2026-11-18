@@ -38,7 +38,7 @@ import { acoes as acoesAdminPretendentes } from './telas/admin-pretendentes.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
-import { acoes as acoesEvento } from './telas/evento.js';
+import { acoes as acoesEvento, atualizarCampoAta } from './telas/evento.js';
 import { acoes as acoesRank } from './telas/rank.js';
 import { acoes as acoesRankinsights } from './telas/rank-insights.js';
 import { acoes as acoesPin } from './telas/pin.js';
@@ -337,6 +337,8 @@ document.getElementById('app').addEventListener('input', (e) => {
   if (atualizarCampoFuncoes(e.target)) return;
   // O ➕ Registrar Acao Social do Painel Social: so lembra.
   if (atualizarCampoPainelSocial(e.target)) return;
+  // A ATA da reuniao dos sociais: so lembra o digitado.
+  if (atualizarCampoAta(e.target)) return;
   // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao
   // o teclado do celular fecharia a cada numero.
   if (e.target.classList && e.target.classList.contains('caixinha-valor')) {
