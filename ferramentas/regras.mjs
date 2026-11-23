@@ -693,6 +693,12 @@ confere('com o grau de cada um', lido.membrosParsed.map(m => m.grauTexto), ['VI'
 confere('o rodapé não vira integrante', lido.membrosParsed.some(m => m.nomeTexto === 'Bull'), false);
 confere('sem nenhum aviso do parser', lido.avisos, []);
 
+// As justificativas novas (23/11/2026), com e sem acento.
+confere('convocação colada: Saúde e Viagem viram as justificativas certas',
+  parseConvocacaoTexto(['🍻 PUB', '👥 MEMBROS 👥', '1. Costa (VI) ❌ Saúde', '2. Bull (VIII) ❌ viagem', '3. Lobo (X) ❌ Saude',
+    '4. Rex (X) ⭕ não justificada'].join('\n'), hojeTeste).membrosParsed.map(m => m.status),
+  ['saude', 'viagem', 'saude', 'infracional']);
+
 const lidoReg = parseConvocacaoTexto(textoReg, hojeTeste);
 confere('Bonde Regional em branco: lista vazia, sem aviso', [lidoReg.membrosParsed.length, lidoReg.avisos], [0, []]);
 confere('Bonde Regional: o tipo volta', lidoReg.evento.tipo, 'Ação Social');
@@ -1717,7 +1723,7 @@ log('');
       presencas: [p('b1', 'Costa', 'Barra - RJ4', 'aguardando')] },
   ];
   confere('encerrado: quem ficou sem marcação conta como não justificada',
-    contagemEvento(evs[0]), { confirmado: 1, familia: 1, trabalho: 0, justificada: 0, infracional: 1, aguardando: 0, total: 3, justificadas: 1, pct: 33 });
+    contagemEvento(evs[0]), { confirmado: 1, familia: 1, trabalho: 0, saude: 0, viagem: 0, justificada: 0, infracional: 1, aguardando: 0, total: 3, justificadas: 1, pct: 33 });
   confere('aberto: sem marcação continua sem marcação', contagemEvento(evs[2]).aguardando, 1);
   confere('a marcação ainda não salva entra na conta da tela', contagemEvento(evs[2], { b1: 'confirmado' }).pct, 100);
 
@@ -1731,11 +1737,16 @@ log('');
   // Caveiras: sem justificativa, toda falta (inclusive a Família marcada
   // antes da regra) e uma so, e o texto diz "FALTARAM".
   confere('caveiras: a Família antiga soma na falta', contagemEvento(evs[0], null, 'caveira'),
-    { confirmado: 1, familia: 0, trabalho: 0, justificada: 0, infracional: 2, aguardando: 0, total: 3, justificadas: 0, pct: 33 });
+    { confirmado: 1, familia: 0, trabalho: 0, saude: 0, viagem: 0, justificada: 0, infracional: 2, aguardando: 0, total: 3, justificadas: 0, pct: 33 });
   confere('caveiras: estatística sem justificadas', estatisticasFuncao(evs, 0, 'caveira').geral.justificadas, 0);
   const txtCav = textoEventoFuncao(evs[0], 'caveira');
   confere('caveiras: o texto tem FALTARAM e não tem justificativa', /❌ FALTARAM \(2\)/.test(txtCav) && !/JUSTIFICAD|NÃO PUDERAM/.test(txtCav), true);
   confere('batedores continuam com as justificadas', contagemEvento(evs[0], null, 'batedor').justificadas, 1);
+  // Saúde e Viagem (23/11/2026): justificadas nos Batedores, falta nos Caveiras.
+  const evSV = { ...evs[0], presencas: [p('b1', 'Costa', 'Barra - RJ4', 'saude'), p('b2', 'Bull', 'Barra - RJ4', 'viagem')] };
+  confere('batedores: Saúde e Viagem são justificadas', [contagemEvento(evSV, null, 'batedor').justificadas, contagemEvento(evSV, null, 'batedor').saude], [2, 1]);
+  confere('caveiras: Saúde e Viagem somam na falta', contagemEvento(evSV, null, 'caveira').infracional, 2);
+  confere('batedores: o motivo sai no texto', textoEventoFuncao(evSV, 'batedor').includes('Costa (Barra) - Saúde'), true);
 
   const texto = textoEventoFuncao(evs[0], 'batedor').split('\n');
   confere('texto do evento: título da função e o %', [texto[0], texto[1], texto[5]],
@@ -1801,11 +1812,12 @@ log('');
   const { textoResumoRelatorios, textoRelatorioInsight, textoRankPresenca } = await import(url('dominio/relatorio-texto.js'));
   const { textoSaldoEstoque } = await import(url('dominio/estoque.js'));
   const r = (pct, c, t, n) => ({ pct, somaConfirmados: c, somaConvidados: t, eventosNoPeriodo: n, statusPeriodo: { confirmado: c, justificada: 2, infracional: t - c - 2, aguardando: 0 } });
-  const resumo = textoResumoRelatorios({ escopo: 'Regional RJ4', filtro: 'Todas as divisões', datas: '', total: { meses: 3, r: r(60, 30, 50, 6) },
-    tipos: [{ tipo: 'Pub', emoji: '🍻', meses: 6, r: r(70, 7, 10, 2) }], faltas: [{ nome: 'Costa', divisao: 'Barra', total: 3 }], mesesLista: 3,
+  const resumo = textoResumoRelatorios({ escopo: 'Regional RJ4', filtro: 'Todas as divisões', datas: 'últimos 6 meses (23/05/2026 até 23/11/2026)', total: { r: r(60, 30, 50, 6) },
+    tipos: [{ tipo: 'Pub', emoji: '🍻', r: r(70, 7, 10, 2) }], faltas: [{ nome: 'Costa', divisao: 'Barra', total: 3 }],
     membros: [{ nome: 'Costa', divisao: 'Barra - RJ4', percentual: 50, confirmacoes: 2, convites: 4 }, { nome: 'Zé', divisao: 'Barra - RJ4', percentual: null, confirmacoes: 0, convites: 0 }] }).split('\n');
-  confere('resumo dos relatórios: total, cada tipo no próprio período e quem faltou',
-    [resumo[4], resumo[8], resumo[11]], ['📊 60% (30 de 50) · 6 eventos', '🍻 Pub (últimos 6 meses): 70% (7 de 10) · 2 eventos', '- Costa (Barra): 3']);
+  confere('resumo dos relatórios: um período só, escrito uma vez, o total, cada tipo e quem faltou',
+    [resumo[2], resumo[4], resumo[5], resumo[9], resumo[12]], ['🗓️ últimos 6 meses (23/05/2026 até 23/11/2026)', '🏁 *Presença total*',
+      '📊 60% (30 de 50) · 6 eventos', '🍻 Pub: 70% (7 de 10) · 2 eventos', '- Costa (Barra): 3']);
   confere('resumo: quem não teve evento fica fora do % de cada integrante', resumo.includes('- Zé: null% (0 de 0)') || resumo.some(l => l.startsWith('- Zé')), false);
   const insight = textoRelatorioInsight({ rodadas: 4, divisoes: [{ chave: 'barra', percentual: 75 }],
     membros: [{ nome: 'Costa', divisao: 'Barra - RJ4', rodadas: 4, confirmacoes: 3, percentual: 75 }] }, 'Desde sempre').split('\n');
@@ -1827,14 +1839,55 @@ log('');
     [rd.levaram, rd.foram, rd.pct, rd.kg, rd.eventos, rd.semMarcacao], [3, 5, 60, 5, 2, 1]);
   confere('resumo das doações: por evento, do mais recente pro mais antigo', rd.itens.map(i => [i.ev.id, i.pct]), [['r1', 50], ['b1', 67]]);
   confere('resumo das doações: por divisão, na ordem oficial', rd.porDivisao.map(d => [d.chave, d.pct]), [['regional', 50], ['barra', 67]]);
-  const comDoacoes = textoResumoRelatorios({ escopo: 'Regional RJ4', filtro: 'Todas as divisões', datas: '', total: { meses: 3, r: r(60, 30, 50, 6) },
-    tipos: [], faltas: [], mesesLista: 3, membros: [], doacoes: { meses: 1, r: rd, varias: true } }).split('\n');
-  const i0 = comDoacoes.indexOf('🥫 *Doações de alimento* — último mês');
+  const comDoacoes = textoResumoRelatorios({ escopo: 'Regional RJ4', filtro: 'Todas as divisões', datas: '', total: { r: r(60, 30, 50, 6) },
+    tipos: [], faltas: [], membros: [], doacoes: { r: rd, varias: true } }).split('\n');
+  const i0 = comDoacoes.indexOf('🥫 *Doações de alimento*');
   confere('resumo dos relatórios: as doações, com cada divisão e sem nomes', comDoacoes.slice(i0, i0 + 6), [
-    '🥫 *Doações de alimento* — último mês', '📊 60% (3 de 5) · 5 kg · 2 eventos',
+    '🥫 *Doações de alimento*', '📊 60% (3 de 5) · 5 kg · 2 eventos',
     '- Regional RJ4: 50% (1 de 2) · 2 kg · 1 evento', '- Barra - RJ4: 67% (2 de 3) · 3 kg · 1 evento',
     '_Dos ✅ confirmados em cada evento, quantos levaram alimento._', '_1 evento sem doação marcada ficou de fora._']);
   confere('resumo dos relatórios: sem doações carregadas, a parte não aparece', resumo.some(l => l.includes('Doações')), false);
+
+  // Regional e divisões separados (23/11/2026): a % do Regional com as
+  // divisões que formam ela (os "X de Y" somam o do Regional), e cada
+  // divisão nos eventos dela.
+  const { participacaoRegionalEDivisoes } = await import(url('dominio/estatisticas.js'));
+  const guardado = { events: st.events, roster: st.roster, reportData: st.reportData, ini: st.relatorioGerarInicio, fim: st.relatorioGerarFim };
+  st.relatorioGerarInicio = '2026-10-01'; st.relatorioGerarFim = '2026-10-31';
+  st.roster = [{ id: 'b1', divisao: 'Barra - RJ4' }, { id: 'b2', divisao: 'Barra - RJ4' }, { id: 'o1', divisao: 'Oeste - RJ4' }, { id: 'r1', divisao: 'Regional RJ4' }];
+  const evP = (id, categoria, data, memberIds, extra = {}) => ({ id, nome: id, categoria, data, status: 'encerrado', memberIds, ...extra });
+  st.events = [
+    evP('reg1', 'regional', '2026-10-05', ['b1', 'b2', 'o1', 'r1', 'x9']),   // x9 saiu do clube
+    evP('reg2', 'regional', '2026-10-12', ['b1', 'o1']),
+    evP('bar1', 'barra', '2026-10-08', ['b1', 'b2']),
+    evP('reg0', 'regional', '2026-09-20', ['b1']),                              // fora do período
+    evP('soc', 'regional', '2026-10-20', ['b1'], { chamada: { foraDoRank: true } }), // fora do rank
+    evP('aberto', 'regional', '2026-10-25', ['b1'], { status: 'ativo' }),
+  ];
+  const s = x => ({ status: x });
+  st.reportData = {
+    reg1: { b1: s('confirmado'), b2: s('familia'), o1: s('confirmado'), r1: s('confirmado'), x9: s('confirmado') },
+    reg2: { b1: s('confirmado') },                 // o1 sem resposta: falta
+    bar1: { b1: s('confirmado'), b2: s('trabalho') },
+    reg0: { b1: s('confirmado') }, soc: { b1: s('confirmado') },
+  };
+  const part = participacaoRegionalEDivisoes();
+  confere('regional e divisões: o total do Regional e as divisões que formam ele, na ordem oficial',
+    [part.regional.pct, part.regional.confirmados, part.regional.convidados, part.regional.eventos,
+      part.regional.porDivisao.map(l => [l.chave, l.confirmados, l.convidados, l.pct])],
+    [71, 5, 7, 2, [['regional', 1, 1, 100], ['oeste', 1, 2, 50], ['barra', 2, 3, 67], ['saiu', 1, 1, 100]]]);
+  confere('regional e divisões: cada divisão nos eventos dela, as 6 mesmo sem evento',
+    part.divisoes.map(x => [x.chave, x.eventos, x.pct]),
+    [['oeste', 0, null], ['recreio', 0, null], ['barra', 1, 50], ['curicica', 0, null], ['taquara', 0, null], ['gardenia', 0, null]]);
+  const comPart = textoResumoRelatorios({ escopo: 'Regional RJ4', filtro: 'Todas as divisões', datas: '', total: { r: r(60, 30, 50, 6) },
+    tipos: [], faltas: [], membros: [], participacao: part }).split('\n');
+  const iR = comPart.indexOf('🏍️ *EVENTOS DO REGIONAL*');
+  confere('resumo dos relatórios: o bloco do Regional e o das divisões no texto', comPart.slice(iR, iR + 9), [
+    '🏍️ *EVENTOS DO REGIONAL*', '📊 71% (5 de 7) · 2 eventos', '- Regional RJ4: 100% (1 de 1)', '- Oeste - RJ4: 50% (1 de 2)',
+    '- Barra - RJ4: 67% (2 de 3)', '- Saíram do clube: 100% (1 de 1)', '', '🏠 *EVENTOS DE DIVISÃO*', '_Cada divisão nos eventos dela._']);
+  confere('resumo dos relatórios: divisão sem evento sai com traço', comPart.includes('- Oeste - RJ4: — · 0 eventos'), true);
+  Object.assign(st, { events: guardado.events, roster: guardado.roster, reportData: guardado.reportData,
+    relatorioGerarInicio: guardado.ini, relatorioGerarFim: guardado.fim });
   confere('saldo do estoque, cada item na sua medida', textoSaldoEstoque([{ item: 'Sapatos', quantidade: 2, medida: 'par' }], 'barra').split('\n').pop(), '• *Sapatos*: 2 pares');
 }
 log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===');

@@ -9,7 +9,7 @@
 // Regras e textos em dominio/funcoes-especiais.js.
 
 import { api, apiPost } from '../nucleo/api.js';
-import { STATUS } from '../nucleo/config.js';
+import { STATUS, ehJustificada } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { IMG_FUNCOES_ESPECIAIS } from '../nucleo/imagens.js';
 import { render } from '../nucleo/render.js';
@@ -27,7 +27,7 @@ import { imagemEstatisticasFuncao, imagemIndividuaisFuncao, imagemResultadoEvent
 const COR_FUNCAO = { batedor: '#5FA0C4', caveira: '#C9C2B4' };
 // Os rotulos curtos dos botoes de marcacao: cinco por linha nao cabem com o
 // nome inteiro num celular. O emoji e o do clube, sempre.
-const ROTULO_CURTO = { confirmado: 'Presente', familia: 'Família', trabalho: 'Trabalho', justificada: 'Justificada', infracional: 'Não justif.' };
+const ROTULO_CURTO = { confirmado: 'Presente', familia: 'Família', trabalho: 'Trabalho', saude: 'Saúde', viagem: 'Viagem', justificada: 'Justificada', infracional: 'Não justif.' };
 // Nos Caveiras so ha presente e falta, entao a falta e o ❌ Faltou, o mesmo
 // emoji de falta do Relatorio Caveiras.
 function rotuloMarcacao(st) {
@@ -193,7 +193,7 @@ function detalheEvento(ev) {
     .filter(p => filtro(daConta(statusNoEvento(ev, p))))
     .map(p => {
       const st = daConta(statusNoEvento(ev, p));
-      const motivo = ['familia', 'trabalho', 'justificada'].includes(st) ? ` - ${STATUS[st].label}` : '';
+      const motivo = ehJustificada(st) ? ` - ${STATUS[st].label}` : '';
       return `${p.nome} (${divisaoCurta(p.divisao)})${motivo}`;
     });
   const secao = (rotulo, emoji, lista) => lista.length ? `
@@ -206,7 +206,7 @@ function detalheEvento(ev) {
     <div style="border-top:1px solid var(--line); margin-top:12px; padding-top:12px;">
       ${renderDonutChart(segmentos, c.pct === null ? '—' : c.pct + '%', 'presença', 130)}
       ${secao('Presentes', '✅', nomes(st => st === 'confirmado'))}
-      ${secao('Falta justificada', '❌', nomes(st => ['familia', 'trabalho', 'justificada'].includes(st)))}
+      ${secao('Falta justificada', '❌', nomes(ehJustificada))}
       ${secao('Sem marcação', '⚠️', nomes(st => st === 'aguardando'))}
       ${semJustificativa ? secao('Faltaram', '❌', nomes(st => st === 'infracional')) : secao('Falta não justificada', '⭕', nomes(st => st === 'infracional'))}
     </div>

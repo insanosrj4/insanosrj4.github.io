@@ -63,6 +63,8 @@ function statusDoResto(resto) {
   if (palavra.includes('aguardand')) return 'aguardando';
   if (palavra.includes('trabalho')) return 'trabalho';
   if (palavra.includes('famil')) return 'familia';
+  if (palavra.includes('saude')) return 'saude';
+  if (palavra.includes('viage')) return 'viagem';
   // A ordem destas tres linhas importa, e nao da pra trocar sem quebrar:
   // "justificad" esta contido em "nao justificad", entao se a segunda viesse
   // antes, TODA falta nao justificada seria lida como justificada - o oposto

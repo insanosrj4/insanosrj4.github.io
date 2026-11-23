@@ -1,6 +1,6 @@
 // Agrupamento de membros por divisao, usado por varias telas.
 
-import { divisoesSemRegional, escopoPorChave } from '../nucleo/config.js';
+import { divisoesSemRegional, ehJustificada, escopoPorChave } from '../nucleo/config.js';
 import { getMemberStatus } from '../nucleo/estado.js';
 import { ordenarPorHierarquia } from '../nucleo/util.js';
 
@@ -57,7 +57,7 @@ export function contagemGrupo(membros) {
   membros.forEach(m => {
     const st = getMemberStatus(m.id).status;
     if (st === 'confirmado') c.confirmado++;
-    else if (st === 'familia' || st === 'trabalho' || st === 'infracional' || st === 'justificada') c.faltam++;
+    else if (st === 'infracional' || ehJustificada(st)) c.faltam++;
     else c.aguardando++;
   });
   return c;

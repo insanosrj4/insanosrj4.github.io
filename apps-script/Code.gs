@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-17-estoque-adm-excluir';
+var VERSAO = '2026-11-23-saude-viagem';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -277,9 +277,15 @@ var STATUS_ROTULO = {
   confirmado: 'Confirmado',
   familia: 'Familia',
   trabalho: 'Trabalho',
+  // Desde 23/11/2026: mais duas justificativas no seletor do app. Sem o
+  // acento, como o 'Familia'. Um status que nao esta aqui vira Aguardando ao
+  // gravar - e Aguardando vira falta nao justificada ao encerrar. Por isso
+  // este Code.gs tem que ser publicado ANTES do app que manda 'saude'/'viagem'.
+  saude: 'Saude',
+  viagem: 'Viagem',
   // Usados so pela importacao de convocacao colada (ver criarEventoDeTexto) -
-  // o picker manual do evento continua com só os 4 de cima (STATUS_PICKER_KEYS
-  // no index.html). "infracional" cobre tanto quem tem falta sem justificativa
+  // o picker manual do evento continua com só os 6 de cima (STATUS_PICKER_KEYS
+  // em js/nucleo/config.js). "infracional" cobre tanto quem tem falta sem justificativa
   // quanto quem nao respondeu a convocacao (mesmo tratamento, por decisao do
   // clube).
   infracional: 'Infracional',
@@ -1350,7 +1356,7 @@ var CHAVES_DIVISOES_DETALHE = ['barra', 'oeste', 'recreio', 'curicica', 'taquara
 // STATUS no index.html (STATUS.chave.emoji), so que aqui.
 var STATUS_EMOJI = {
   aguardando: '⚠️', confirmado: '✅', familia: '❌', trabalho: '❌',
-  justificada: '❌', infracional: '⭕'
+  saude: '❌', viagem: '❌', justificada: '❌', infracional: '⭕'
 };
 
 function atualizarAbasDivisoes() {
@@ -4019,6 +4025,8 @@ var ORDEM_SECOES = [
   { chave: 'aguardando', titulo: 'MEMBROS NAO CONFIRMADOS' },
   { chave: 'familia', titulo: 'FALTA - FAMILIA' },
   { chave: 'trabalho', titulo: 'FALTA - TRABALHO' },
+  { chave: 'saude', titulo: 'FALTA - SAUDE' },
+  { chave: 'viagem', titulo: 'FALTA - VIAGEM' },
   { chave: 'justificada', titulo: 'FALTA - JUSTIFICADA' },
   { chave: 'infracional', titulo: 'FALTA - NAO JUSTIFICADA (inclui quem nao respondeu)' }
 ];
@@ -4081,7 +4089,8 @@ function atualizarRelatorio() {
       linhasSaida.push([detalhes.join('  -  '), '']);
     }
 
-    var porStatus = { confirmado: [], aguardando: [], familia: [], trabalho: [], justificada: [], infracional: [] };
+    var porStatus = {};
+    ORDEM_SECOES.forEach(function (sec) { porStatus[sec.chave] = []; });
     (porEvento[ev.id] || []).forEach(function (p) {
       var selos = [];
       if (p.direto) selos.push('Direto');
@@ -4104,8 +4113,10 @@ function atualizarRelatorio() {
 
     // Mesmo resumo de 3 categorias que o app mostra ao salvar a convocacao
     // (Confirmados / Faltas justificadas / Faltas infracionais) - familia,
-    // trabalho e justificada contam juntos como "justificada", igual la.
-    var totalJustificadas = porStatus.familia.length + porStatus.trabalho.length + porStatus.justificada.length;
+    // trabalho, saude, viagem e justificada contam juntos como "justificada",
+    // igual la.
+    var totalJustificadas = porStatus.familia.length + porStatus.trabalho.length + porStatus.saude.length
+      + porStatus.viagem.length + porStatus.justificada.length;
     formatos.push({ linha: linhasSaida.length + 1, tipo: 'resumo' });
     linhasSaida.push(['❌ Faltas justificadas: ' + totalJustificadas + '   ⭕ Faltas nao justificadas: ' + porStatus.infracional.length, '']);
 

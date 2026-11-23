@@ -1,12 +1,12 @@
 // Painel de Relatorios: as 7 abas, os filtros e o fluxo de colar convocacao.
 
 import { formatKg, resumoDoacoesPeriodo } from '../dominio/doacoes.js';
-import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, janelaDoGrafico, periodoDoRelatorioGerado, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela, textoDoPeriodoGerado } from '../dominio/estatisticas.js';
+import { estatisticasMembrosPorPeriodo, estatisticasMembrosPorTipo, eventosDoRelatorioEscopo, participacaoRegionalEDivisoes, periodoDoRelatorioGerado, rankingFaltasInfracionais, resumoDonutPeriodo, textoDoPeriodoGerado } from '../dominio/estatisticas.js';
 import { textoResumoRelatorios } from '../dominio/relatorio-texto.js';
 import { computeCounts, statusEfetivo } from '../dominio/status.js';
-import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_PERIODOS, RELATORIO_TABS, STATUS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial, temDoacoesECaixinha } from '../nucleo/config.js';
+import { ABAS_COM_FILTRO_DIVISAO, RELATORIO_PERIODOS, RELATORIO_TABS, STATUS, STATUS_JUSTIFICADOS, STATUS_TOTAIS_LABEL, TIPOS_EVENTO, TIPOS_EVENTO_TABS_ORDEM, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, escoposNaOrdemOficial, temDoacoesECaixinha } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
-import { copiarTexto, dataCorteMeses, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
+import { copiarTexto, dataDoCampoOuAvisar, escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { campoData, renderFichaMembro, renderListaEstatisticasPorDivisao } from '../ui/comuns.js';
 import { imagemResumoRelatorios, mostrarPreviaImagem } from '../ui/imagem.js';
 import { esqueletoLista, esqueletoRosca, renderDonutCard, renderDonutChart, renderRankingFaltasInfracionais } from '../ui/graficos.js';
@@ -61,11 +61,11 @@ function renderRelatorioFiltroPeriodo() {
   `;
 }
 
-// No Resumo o card de periodo e o "Gerar relatorio" (31/10/2026): as datas
-// dele so valem pro relatorio gerado - os graficos da tela seguem os botoes
-// 1/6/12 meses de cada um. O card tem os mesmos botoes (de hoje pra tras):
-// tocar num limpa as datas; com datas preenchidas, valem as datas. As datas
-// sao lidas no toque de exportar (ver lerPeriodoGerar).
+// No Resumo o card de periodo e o "Gerar relatorio". Desde 23/11/2026 ele
+// manda na pagina inteira e no relatorio ao mesmo tempo (os graficos nao tem
+// mais periodo proprio). Os botoes 1/6/12 meses (de hoje pra tras) mudam na
+// hora e limpam as datas; as datas valem no toque do "Atualizar" (ou de um
+// dos botoes de exportar), ver lerPeriodoGerar.
 function renderGerarRelatorio() {
   const ativo = state.relatorioGerarInicio || state.relatorioGerarFim;
   const meses = state.relatorioGerarMeses || 1;
@@ -82,7 +82,8 @@ function renderGerarRelatorio() {
         ${campoData({ id: 'relatorio-gerar-inicio', rotulo: 'Data inicial', valor: state.relatorioGerarInicio, estilo: 'margin-bottom:0; flex:1;' })}
         ${campoData({ id: 'relatorio-gerar-fim', rotulo: 'Data final', valor: state.relatorioGerarFim, estilo: 'margin-bottom:0; flex:1;' })}
       </div>
-      <div style="color:var(--text-muted); font-size:12px; margin:6px 0 10px;">O relatório sai ${ativo ? 'de' : (state.relatorioGerarMeses || 1) === 1 ? 'do' : 'dos'} ${escapeHtml(textoDoPeriodoGerado())}.</div>
+      <button class="btn secondary block" data-action="atualizar-relatorio-gerar" style="margin-top:10px;">🔄 Atualizar</button>
+      <div style="color:var(--text-muted); font-size:12px; margin:8px 0 10px;">A página e o relatório mostram ${ativo ? 'de' : (state.relatorioGerarMeses || 1) === 1 ? 'o' : 'os'} ${escapeHtml(textoDoPeriodoGerado())}.</div>
       <div class="row-gap">
         <button class="btn secondary" style="flex:1;" data-action="copiar-resumo-relatorios">📋 WhatsApp</button>
         <button class="btn secondary" style="flex:1;" data-action="imprimir-relatorio">📄 PDF</button>
@@ -90,7 +91,7 @@ function renderGerarRelatorio() {
       </div>
       ${ativo ? '<div class="btn ghost" data-action="limpar-relatorio-gerar" style="margin-top:8px; padding:2px 0; font-size:12px;">Limpar as datas</div>' : ''}
     </div>
-    ${state.relatorioGerando ? `<div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(textoDoPeriodoGerado())}</div>` : ''}
+    <div class="print-only" style="margin-bottom:10px; font-size:13px; color:var(--text-muted);">Período: ${escapeHtml(textoDoPeriodoGerado())}</div>
   `;
 }
 
@@ -104,12 +105,6 @@ function lerPeriodoGerar() {
   state.relatorioGerarInicio = inicio;
   state.relatorioGerarFim = fim;
   return true;
-}
-
-// Monta o que o relatorio precisa com o periodo do card ligado.
-function comoRelatorio(montar) {
-  state.relatorioGerando = true;
-  try { return montar(); } finally { state.relatorioGerando = false; }
 }
 
 // Entra nos Relatorios com tudo zerado, na divisao que o organizador ja
@@ -140,12 +135,10 @@ export async function entrarNosRelatorios() {
   state.relatorioFiltroDivisao = 'todas';
   state.relatorioFiltroDataInicio = '';
   state.relatorioFiltroDataFim = '';
-  // Os graficos sempre abrem no ultimo mes, e o relatorio sem datas.
-  state.relatorioPeriodoPorGrafico = { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1, doacoes: 1 };
+  // O Resumo sempre abre no ultimo mes, sem datas.
   state.relatorioGerarInicio = '';
   state.relatorioGerarFim = '';
   state.relatorioGerarMeses = 1;
-  state.relatorioGerando = false;
   state.view = 'relatorio';
   render();
   await Promise.all([loadReportData(), carregarDoacoesDoRelatorio()]);
@@ -386,7 +379,7 @@ function conteudoRelatorioResultado() {
   (state.relatorioParsed ? state.relatorioParsed.membrosParsed : []).forEach(r => {
     if (r.membroId) statusPorMembro[r.membroId] = r.status;
   });
-  const groups = { confirmado: [], familia: [], trabalho: [], aguardando: [], justificada: [], infracional: [] };
+  const groups = Object.fromEntries(Object.keys(STATUS).map(k => [k, []]));
   ev.memberIds.forEach(mid => {
     const m = state.roster.find(r => r.id === mid);
     if (!m) return;
@@ -402,7 +395,7 @@ function conteudoRelatorioResultado() {
       <div class="info-line"><b>${pct}% de presença</b> (${groups.confirmado.length} de ${total})</div>
       <div class="info-line">✅ Confirmados: ${groups.confirmado.length}</div>
       ${ev.status !== 'encerrado' ? `<div class="info-line">⚠️ Aguardando: ${groups.aguardando.length}</div>` : ''}
-      <div class="info-line">❌ Faltas justificadas: ${groups.familia.length + groups.trabalho.length + groups.justificada.length}</div>
+      <div class="info-line">❌ Faltas justificadas: ${STATUS_JUSTIFICADOS.reduce((s, k) => s + groups[k].length, 0)}</div>
       <div class="info-line">⭕ Faltas não justificadas (inclui quem não respondeu): ${groups.infracional.length}</div>
       ${groups.infracional.length ? `<div class="info-line" style="white-space:pre-wrap; color:var(--text-muted);">${groups.infracional.map(n => '- ' + n).join('\n')}</div>` : ''}
     </div>
@@ -475,10 +468,9 @@ function tabelaEventosPorDivisao(grupos) {
 }
 
 // Drill-down de um card (chave = 'total' ou um tipo): grafico de barras +
-// tabela dos eventos que entraram na janela escolhida naquele card.
+// tabela dos eventos que entraram no periodo do Resumo.
 function conteudoRelatorioTipoDetalhe(encerrados, chave) {
-  const meses = janelaDoGrafico(chave);
-  const r = resumoDonutPeriodo(encerrados, chave, meses);
+  const r = resumoDonutPeriodo(encerrados, chave);
   const titulo = chave === 'total' ? 'Presença total' : chave;
   const emoji = chave === 'total' ? '🏁' : emojiTipoEvento(chave);
   const grupos = agruparEventosPorDivisao(r.itens);
@@ -532,27 +524,23 @@ function conteudoRelatorioTipoFixo(tipo) {
 
 // Pagina principal da tela "Relatorios" depois do PIN: painel com 5 donuts
 // (Presenca total, em destaque no topo, + um por TIPOS_EVENTO alinhados
-// embaixo), cada um com seu proprio periodo (1/3/6/12 meses) e contagem de
+// embaixo), todos no periodo do card "Gerar relatorio", com a contagem de
 // eventos. Clicar em "Ver eventos" de um card abre o grafico+tabela so
 // daquele grupo (conteudoRelatorioTipoDetalhe).
 function conteudoRelatorioPresenca() {
   const encerrados = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado');
 
-  // % de cada integrante no mesmo periodo do card "Presença total" (em vez
-  // de sempre "desde sempre") - antes essa lista vinha de uma acao propria
-  // no Code.gs (lerEstatisticasMembros) que ignorava o periodo escolhido
-  // nos donuts acima; agora usa o mesmo state.reportData ja carregado pra
-  // aba inteira, sem round-trip novo ao servidor.
-  const mesesLista = janelaDoGrafico('total');
-  const corteLista = mesesLista ? dataCorteMeses(mesesLista) : '';
-  const faltaCarregarLista = encerrados.some(e => e.data && e.data >= corteLista && !(e.id in state.reportData));
-  const listaMembros = faltaCarregarLista ? null : estatisticasMembrosPorPeriodo(mesesLista);
+  // % de cada integrante no mesmo periodo dos graficos, a partir do
+  // state.reportData ja carregado pra aba inteira, sem round-trip novo.
+  const faltaCarregarLista = encerrados.some(e => e.data && !(e.id in state.reportData));
+  const listaMembros = faltaCarregarLista ? null : estatisticasMembrosPorPeriodo();
 
   const corpoPrincipal = state.relatorioTipoDetalhe === 'doacoes' ? conteudoDoacoesDetalhe()
     : state.relatorioTipoDetalhe
     ? conteudoRelatorioTipoDetalhe(encerrados, state.relatorioTipoDetalhe)
     : `
       ${renderDonutCard('Presença total', 'total', encerrados, true)}
+      ${renderCardRegionalEDivisoes()}
       <div class="donut-grid">
         ${TIPOS_EVENTO.map(tipo => renderDonutCard(tipo, tipo, encerrados, false)).join('')}
       </div>
@@ -565,8 +553,63 @@ function conteudoRelatorioPresenca() {
     ${corpoPrincipal}
 
     <div class="card" style="margin-top:14px;">
-      <div class="painel-titulo">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(${escapeHtml(rotuloDaJanela(mesesLista))})</span></div>
+      <div class="painel-titulo">% de cada integrante <span style="color:var(--text-muted); font-weight:400; font-size:12px;">(${escapeHtml(textoDoPeriodoGerado())})</span></div>
       ${!listaMembros ? esqueletoLista() : !listaMembros.length ? '<div class="empty">Nenhum membro cadastrado ainda.</div>' : renderListaEstatisticasPorDivisao(listaMembros)}
+    </div>
+  `;
+}
+
+// ---------- Regional e divisoes separados (23/11/2026) ----------
+// So no Regional. Com "Todas as divisoes", os dois blocos inteiros; com o
+// filtro no Regional, so o bloco do Regional; com uma divisao, a linha dela
+// nos dois (o total do Regional continua no titulo, pra comparar).
+function participacaoDoFiltro() {
+  if (state.adminEscopo !== 'regional') return null;
+  const p = participacaoRegionalEDivisoes();
+  const filtro = state.relatorioFiltroDivisao;
+  if (filtro === 'todas') return p;
+  if (filtro === 'regional') return { ...p, divisoes: [] };
+  return {
+    ...p,
+    regional: { ...p.regional, porDivisao: p.regional.porDivisao.filter(l => l.chave === filtro) },
+    divisoes: p.divisoes.filter(d => d.chave === filtro),
+  };
+}
+
+const textoDeQuantos = (c, t) => `${c} de ${t}`;
+const textoPct = v => (v === null ? '—' : v + '%');
+const textoEventos = n => `${n} ${n === 1 ? 'evento' : 'eventos'}`;
+
+function linhaParticipacao(nome, direita) {
+  return `
+    <div class="info-line" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+      <span>${escapeHtml(nome)}</span>
+      <span style="font-variant-numeric:tabular-nums; white-space:nowrap;">${direita}</span>
+    </div>
+  `;
+}
+
+function renderCardRegionalEDivisoes() {
+  const p = participacaoDoFiltro();
+  if (!p) return '';
+  if (p.faltaCarregar) return `<div class="card" style="margin-top:14px;">${esqueletoLista(6)}</div>`;
+  const reg = p.regional;
+  const muted = t => `<span style="color:var(--text-muted); font-size:12px;">${t}</span>`;
+  const blocoRegional = `
+    <div class="relatorio-grupo-titulo"><span>🏍️ Eventos do Regional</span><span>${textoPct(reg.pct)} · ${textoDeQuantos(reg.confirmados, reg.convidados)} · ${textoEventos(reg.eventos)}</span></div>
+    ${!reg.porDivisao.length ? '<div class="empty">Nenhum evento do Regional nesse período.</div>'
+      : reg.porDivisao.map(l => linhaParticipacao(l.nome, `<b>${textoPct(l.pct)}</b> ${muted(textoDeQuantos(l.confirmados, l.convidados))}`)).join('')}
+  `;
+  const blocoDivisoes = !p.divisoes.length ? '' : `
+    <div class="relatorio-grupo-titulo"><span>🏠 Eventos de divisão</span><span>cada uma nos eventos dela</span></div>
+    ${p.divisoes.map(d => linhaParticipacao(d.nome, `<b>${textoPct(d.pct)}</b> ${muted(`${d.convidados ? textoDeQuantos(d.confirmados, d.convidados) + ' · ' : ''}${textoEventos(d.eventos)}`)}`)).join('')}
+  `;
+  return `
+    <div class="card" style="margin-top:14px;">
+      <div class="painel-titulo">🏍️ Regional e divisões</div>
+      <div style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">🗓️ ${escapeHtml(textoDoPeriodoGerado())}</div>
+      ${blocoRegional}
+      ${blocoDivisoes}
     </div>
   `;
 }
@@ -584,16 +627,14 @@ function divisoesComDoacoesNoRelatorio() {
   return state.relatorioFiltroDivisao === 'todas' ? todas : todas.filter(c => c === state.relatorioFiltroDivisao);
 }
 
-// A conta do card no periodo dele: a janela dos botoes na tela, ou o do
-// relatorio gerado (janelaDoGrafico devolve null). r = null enquanto busca.
+// A conta do card no periodo do Resumo. r = null enquanto busca.
 function doacoesDoResumo() {
   const divisoes = divisoesComDoacoesNoRelatorio();
   if (!divisoes.length) return null;
-  const meses = janelaDoGrafico('doacoes');
   const dados = state.relatorioDoacoes && state.relatorioDoacoes.escopo === state.adminEscopo ? state.relatorioDoacoes : null;
-  if (!dados) return { meses, r: null, varias: divisoes.length > 1 };
-  const { ini, fim } = meses ? { ini: dataCorteMeses(meses), fim: '' } : periodoDoRelatorioGerado();
-  return { meses, r: resumoDoacoesPeriodo(dados.eventos.filter(e => divisoes.includes(e.categoria)), ini, fim), varias: divisoes.length > 1 };
+  if (!dados) return { r: null, varias: divisoes.length > 1 };
+  const { ini, fim } = periodoDoRelatorioGerado();
+  return { r: resumoDoacoesPeriodo(dados.eventos.filter(e => divisoes.includes(e.categoria)), ini, fim), varias: divisoes.length > 1 };
 }
 
 const segmentosDoacao = r => [
@@ -609,7 +650,7 @@ function avisoSemMarcacaoResumo(r) {
 function renderCardDoacoes() {
   const d = doacoesDoResumo();
   if (!d) return '';
-  const { meses, r } = d;
+  const { r } = d;
   let corpo;
   if (state.relatorioDoacoesErro) {
     corpo = `
@@ -629,17 +670,10 @@ function renderCardDoacoes() {
       ${r.itens.length ? '<div class="btn ghost no-print" style="margin-top:6px; padding:4px 0;" data-action="abrir-relatorio-tipo-detalhe" data-value="doacoes">Ver eventos ›</div>' : ''}
     `;
   }
-  const pilulas = RELATORIO_PERIODOS.map(m => `
-    <button class="pilula ${meses === m ? 'active' : ''}" data-action="set-relatorio-periodo-tipo" data-chave="doacoes" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
-  `).join('');
-  const periodo = meses
-    ? `<div class="pilulas-periodo no-print">${pilulas}</div>
-       <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Período: ${escapeHtml(rotuloDaJanela(meses))}</div>`
-    : `<div style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">🗓️ ${escapeHtml(rotuloDaJanela(meses))}</div>`;
   return `
     <div class="card donut-card" style="margin-top:14px;">
       <div class="painel-titulo">🥫 Doações de alimento</div>
-      ${periodo}
+      <div style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">🗓️ ${escapeHtml(textoDoPeriodoGerado())}</div>
       ${corpo}
     </div>
   `;
@@ -719,25 +753,22 @@ function conteudoDoacoesDetalhe() {
 }
 
 // O que o Resumo mostra, pro texto do WhatsApp e pra imagem: os mesmos
-// numeros dos cards, cada um no periodo escolhido nele, e os mesmos
-// filtros de divisao e de datas.
+// numeros dos cards, no mesmo periodo e no mesmo filtro de divisao.
 function dadosDoResumo() {
   const encerrados = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado');
-  const meses = janelaDoGrafico;
   const regional = state.adminEscopo === 'regional';
   const filtro = regional
     ? (state.relatorioFiltroDivisao === 'todas' ? 'Todas as divisões' : escopoPorChave(state.relatorioFiltroDivisao).nome)
     : '';
   const datas = textoDoPeriodoGerado();
-  const mesesLista = meses('total');
   return {
     escopo: escopoPorChave(state.adminEscopo).nome, filtro, datas,
-    total: { meses: meses('total'), r: resumoDonutPeriodo(encerrados, 'total', meses('total')) },
-    tipos: TIPOS_EVENTO.map(tipo => ({ tipo, emoji: emojiTipoEvento(tipo), meses: meses(tipo), r: resumoDonutPeriodo(encerrados, tipo, meses(tipo)) })),
-    faltas: rankingFaltasInfracionais(encerrados, mesesLista).filter(f => f.total > 0).slice(0, 8)
+    total: { r: resumoDonutPeriodo(encerrados, 'total') },
+    tipos: TIPOS_EVENTO.map(tipo => ({ tipo, emoji: emojiTipoEvento(tipo), r: resumoDonutPeriodo(encerrados, tipo) })),
+    faltas: rankingFaltasInfracionais(encerrados).filter(f => f.total > 0).slice(0, 8)
       .map(f => ({ ...f, divisao: f.divisao.replace(/\s*-?\s*RJ4$/, '') })),
-    mesesLista,
-    membros: estatisticasMembrosPorPeriodo(mesesLista),
+    membros: estatisticasMembrosPorPeriodo(),
+    participacao: participacaoDoFiltro(),
     doacoes: doacoesDoResumo(),
   };
 }
@@ -784,32 +815,29 @@ export const acoes = {
     render();
     return carregarDoacoesDoRelatorio();
   },
-  // O PDF e a impressao da tela - desenhada de novo com o periodo do card
-  // (state.relatorioGerando) e devolvida aos botoes da tela depois.
+  // O PDF e a impressao da tela, que ja esta no periodo do card. Datas
+  // digitadas sem "Atualizar" passam a valer antes (a tela e o papel batem).
   'imprimir-relatorio': async (id, target, action, e) => {
     if (!lerPeriodoGerar()) return;
-    state.relatorioGerando = true;
     render();
-    const voltar = () => {
-      window.removeEventListener('afterprint', voltar);
-      if (!state.relatorioGerando) return;
-      state.relatorioGerando = false;
-      render();
-    };
-    window.addEventListener('afterprint', voltar);
     window.print();
   },
   'copiar-resumo-relatorios': async (id, target, action, e) => {
     if (!lerPeriodoGerar()) return;
-    const texto = textoResumoRelatorios(comoRelatorio(dadosDoResumo));
+    const texto = textoResumoRelatorios(dadosDoResumo());
     render();
     return copiarTexto(texto);
   },
   'imagem-resumo-relatorios': async (id, target, action, e) => {
     if (!lerPeriodoGerar()) return;
-    const d = comoRelatorio(dadosDoResumo);
+    const d = dadosDoResumo();
     render();
     return mostrarPreviaImagem(() => imagemResumoRelatorios(d), `relatorio-presenca-${state.adminEscopo}.png`);
+  },
+  'atualizar-relatorio-gerar': async (id, target, action, e) => {
+    if (!lerPeriodoGerar()) return;
+    state.relatorioTipoDetalhe = null;
+    return render();
   },
   'set-relatorio-gerar-meses': async (id, target, action, e) => {
     state.relatorioGerarMeses = Number(target.dataset.value);

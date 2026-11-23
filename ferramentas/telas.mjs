@@ -527,17 +527,13 @@ for (const aba of ['resumo','enviar','Pub','Bate e Volta','Reunião','Ação Soc
   add(`relatorios / ${aba}`, { isAdmin:true, adminEscopo:'regional',
     relatorioCategoriaAlvo:'regional', relatorioTab:aba, relatorioFiltroDivisao:'todas' }, T.renderRelatorioShell);
 }
-// O card "Gerar relatorio" do Resumo: as datas dele nao mexem na tela
-// (graficos no ultimo mes, pelos botoes); montando o relatorio (o PDF),
-// vale so o periodo do card - julho, mais antigo que qualquer botao.
+// O card "Gerar relatorio" do Resumo manda na pagina inteira (23/11/2026):
+// com as datas de julho, os graficos, as listas e o PDF mostram julho.
 add('relatorios / resumo com datas no card', { isAdmin:true, adminEscopo:'regional',
   relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas',
   relatorioGerarInicio:'2026-07-01', relatorioGerarFim:'2026-07-31' }, T.renderRelatorioShell);
 add('relatorios / card em 6 meses', { isAdmin:true, adminEscopo:'regional',
   relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas', relatorioGerarMeses:6 }, T.renderRelatorioShell);
-add('relatorios / pdf de julho', { isAdmin:true, adminEscopo:'regional',
-  relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas',
-  relatorioGerarInicio:'2026-07-01', relatorioGerarFim:'2026-07-31', relatorioGerando:true }, T.renderRelatorioShell);
 add('relatorios / resumo (so barra)', { isAdmin:true, adminEscopo:'barra',
   relatorioCategoriaAlvo:'barra', relatorioTab:'resumo' }, T.renderRelatorioShell);
 // "Ver eventos" do Presença total: no Regional com todas as divisões sai
@@ -545,10 +541,10 @@ add('relatorios / resumo (so barra)', { isAdmin:true, adminEscopo:'barra',
 // O período de 12 meses é fixo para o resultado não mudar com o calendário.
 add('relatorios / presença total (por divisão)', { isAdmin:true, adminEscopo:'regional',
   relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas',
-  relatorioTipoDetalhe:'total', relatorioPeriodoPorGrafico:{ total:12 } }, T.renderRelatorioShell);
+  relatorioTipoDetalhe:'total', relatorioGerarMeses:12 }, T.renderRelatorioShell);
 add('relatorios / presença total (so barra)', { isAdmin:true, adminEscopo:'barra',
   relatorioCategoriaAlvo:'barra', relatorioTab:'resumo',
-  relatorioTipoDetalhe:'total', relatorioPeriodoPorGrafico:{ total:12 } }, T.renderRelatorioShell);
+  relatorioTipoDetalhe:'total', relatorioGerarMeses:12 }, T.renderRelatorioShell);
 // Revisao da convocacao colada - tem o campo de data do evento.
 add('relatorios / revisão do colado', { isAdmin:true, adminEscopo:'barra',
   relatorioTab:'enviar', relatorioColarStep:'revisao', relatorioCategoriaAlvo:'barra',
@@ -566,11 +562,11 @@ const doacoesDoRelatorio = { escopo:'regional', eventos:[
 const rel = { isAdmin:true, adminEscopo:'regional', relatorioCategoriaAlvo:'regional', relatorioTab:'resumo', relatorioFiltroDivisao:'todas' };
 add('relatorios / doações carregando', { ...rel, relatorioDoacoes:null }, T.renderRelatorioShell);
 add('relatorios / doações (12 meses)', { ...rel, relatorioDoacoes:doacoesDoRelatorio,
-  relatorioPeriodoPorGrafico:{ total:1, doacoes:12 } }, T.renderRelatorioShell);
+  relatorioGerarMeses:12 }, T.renderRelatorioShell);
 add('relatorios / doações ver eventos', { ...rel, relatorioDoacoes:doacoesDoRelatorio, relatorioTipoDetalhe:'doacoes',
-  relatorioPeriodoPorGrafico:{ total:1, doacoes:12 } }, T.renderRelatorioShell);
+  relatorioGerarMeses:12 }, T.renderRelatorioShell);
 add('relatorios / doações ver eventos (só barra)', { ...rel, relatorioFiltroDivisao:'barra', relatorioDoacoes:doacoesDoRelatorio,
-  relatorioTipoDetalhe:'doacoes', relatorioPeriodoPorGrafico:{ total:1, doacoes:12 } }, T.renderRelatorioShell);
+  relatorioTipoDetalhe:'doacoes', relatorioGerarMeses:12 }, T.renderRelatorioShell);
 add('relatorios / doações erro', { ...rel, relatorioDoacoesErro:'A conexao demorou demais' }, T.renderRelatorioShell);
 add('relatorios / sem doações (oeste)', { ...rel, relatorioFiltroDivisao:'oeste', relatorioDoacoes:doacoesDoRelatorio }, T.renderRelatorioShell);
 add('relatorios / ficha do membro',   { isAdmin:true, adminEscopo:'regional',
@@ -1096,7 +1092,7 @@ const LIMPO = {
   acoesSociaisDados:null, acoesSociaisDadosEscopo:null, acoesSociaisCarregando:false, acoesSociaisErro:null,
   acoesSociaisSalvando:false, acoesSociaisMsg:null, acaoSocialIdeiaForm:null, acaoSocialApagarId:null,
   acoesSociaisAno:null, acaoSocialMesAberto:null, acaoSocialAgendaForm:null, acaoSocialCriarEventoId:null, acoesSociaisLegenda:false, acaoSocialTextoForm:null, acaoSocialRascunhoConfirmar:false,
-  relatorioGerarInicio:'', relatorioGerarFim:'', relatorioGerarMeses:1, relatorioGerando:false,
+  relatorioGerarInicio:'', relatorioGerarFim:'', relatorioGerarMeses:1,
   carteirinhasExportar:null, carteirinhasMarcados:new Set(), carteirinhasCarregando:false, carteirinhasErro:null, carteirinhasProntas:null, carteirinhasCopiado:false, carteirinhasSimplificado:false, carteirinhasDivisoesAbertas:new Set(),
   carteirinhaMembroId:null, carteirinhaFicha:null, carteirinhaPct:null, carteirinhaCarregando:false, carteirinhaErro:null,
   carteirinhaForm:null, carteirinhaSalvando:false, carteirinhaMsg:null, carteirinhaFotoProcessando:false, aniversarios:null, aniversariosEscopo:null,

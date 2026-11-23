@@ -3,7 +3,7 @@
 import { soAtivos } from './movimentos.js';
 import { normalizarNome } from './parser.js';
 import { computeCounts, contaNoRank, statusEfetivo } from './status.js';
-import { TIPOS_EVENTO, escopoPorChave } from '../nucleo/config.js';
+import { TIPOS_EVENTO, ehJustificada, escopoPorChave, escoposNaOrdemOficial, somaJustificadas } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { dataCorteMeses, formatDataBR, hojeISO } from '../nucleo/util.js';
 
@@ -133,13 +133,12 @@ export function eventosDoRelatorioEscopo() {
     .sort((a, b) => (b.data || '').localeCompare(a.data || '') || (b.criadoEm || '').localeCompare(a.criadoEm || ''));
 }
 
-// O Resumo dos Relatorios tem dois periodos (31/10/2026):
-// - na TELA, cada grafico tem os botoes 1/6/12 meses (relatorioPeriodoPorGrafico),
-//   de hoje pra tras, so pra olhar;
-// - o RELATORIO gerado (WhatsApp, PDF, imagem, no card "Gerar relatorio")
-//   usa so o periodo daquele card, em tudo: as datas, ou - em branco - os
-//   botoes 1/6/12 meses do card (relatorioGerarMeses, de hoje pra tras).
-// Enquanto o relatorio e montado, state.relatorioGerando liga o segundo.
+// O Resumo dos Relatorios tem UM periodo so (23/11/2026, pedido do clube):
+// o do card "Gerar relatorio", que manda na pagina inteira e no relatorio
+// gerado (WhatsApp, PDF, imagem) ao mesmo tempo - as datas, ou - em
+// branco - os botoes 1/6/12 meses do card (relatorioGerarMeses, de hoje
+// pra tras). Antes (31/10) cada grafico tinha os proprios 1/6/12 meses so
+// pra tela, e a tela e o relatorio mostravam periodos diferentes.
 // As abas por tipo (Pub, Bate e Volta...) seguem com o "Filtrar por periodo"
 // de sempre (relatorioFiltroData*), que filtra a tela.
 export function periodoDoRelatorioGerado() {
@@ -152,21 +151,15 @@ export function periodoDoRelatorioGerado() {
 }
 
 // As datas que filtram os eventos agora ('' = sem limite daquele lado).
+// A Ficha do membro, aberta do Resumo, continua com o historico inteiro.
 function datasEmVigor() {
-  if (state.relatorioGerando) return periodoDoRelatorioGerado();
-  if (state.relatorioTab === 'resumo') return { ini: '', fim: '' };
+  if (state.relatorioTab === 'resumo') {
+    return state.relatorioMembroFichaId ? { ini: '', fim: '' } : periodoDoRelatorioGerado();
+  }
   return { ini: state.relatorioFiltroDataInicio, fim: state.relatorioFiltroDataFim };
 }
 
-// A janela de meses de um grafico do Resumo: a dos botoes dele na tela, ou
-// null (sem janela - vale o periodo do relatorio) quando o relatorio esta
-// sendo montado.
-export function janelaDoGrafico(chave) {
-  if (state.relatorioGerando) return null;
-  return state.relatorioPeriodoPorGrafico[chave] || 1;
-}
-
-// O periodo do relatorio gerado, escrito.
+// O periodo do Resumo, escrito.
 export function textoDoPeriodoGerado() {
   const p = periodoDoRelatorioGerado();
   const datas = `${p.ini ? formatDataBR(p.ini) : 'início'} até ${p.fim ? formatDataBR(p.fim) : 'hoje'}`;
@@ -174,11 +167,57 @@ export function textoDoPeriodoGerado() {
   return `${p.meses === 1 ? 'último mês' : `últimos ${p.meses} meses`} (${datas})`;
 }
 
-// Como se escreve a janela de um grafico: 'último mês', 'últimos 6 meses'
-// ou, sem janela, o periodo do relatorio.
-export function rotuloDaJanela(meses) {
-  if (!meses) return textoDoPeriodoGerado();
-  return meses === 1 ? 'último mês' : `últimos ${meses} meses`;
+// Regional e divisoes separados (23/11/2026, pedido do clube), no periodo
+// do Resumo e sem o filtro de divisao (quem filtra e a tela):
+// - regional: a % dos eventos do Regional e as divisoes que formam ela -
+//   quanto os convocados de cada divisao compareceram. Os "X de Y" das
+//   divisoes somam exatamente o do Regional. Quem saiu do clube depois
+//   (fora do cadastro) fica na linha 'saiu', pra conta continuar fechando;
+// - divisoes: a % de cada uma nos eventos dela (as 6, mesmo sem evento).
+// Tudo na ordem oficial do clube. faltaCarregar = presenca de algum evento
+// ainda nao chegou.
+export const CHAVE_SAIU_DO_CLUBE = 'saiu';
+export function participacaoRegionalEDivisoes() {
+  const { ini, fim } = periodoDoRelatorioGerado();
+  const encerrados = state.events.filter(e => e.status === 'encerrado' && contaNoRank(e) && e.data
+    && (!ini || e.data >= ini) && (!fim || e.data <= fim));
+  const faltaCarregar = encerrados.some(e => !state.reportData[e.id]);
+  const ordem = escoposNaOrdemOficial();
+  const chavePorNome = Object.fromEntries(ordem.map(e => [e.nome, e.chave]));
+  const divisaoDoMembro = Object.fromEntries(state.roster.map(m => [m.id, chavePorNome[m.divisao] || CHAVE_SAIU_DO_CLUBE]));
+  const pct = (c, t) => (t ? Math.round((c / t) * 100) : null);
+  const confirmou = (ev, mid) => {
+    const p = state.reportData[ev.id] || {};
+    return statusEfetivo(ev, (p[mid] && p[mid].status) || 'aguardando') === 'confirmado';
+  };
+
+  const doRegional = encerrados.filter(e => e.categoria === 'regional' && state.reportData[e.id]);
+  const porChave = {};
+  doRegional.forEach(ev => ev.memberIds.forEach(mid => {
+    const chave = divisaoDoMembro[mid] || CHAVE_SAIU_DO_CLUBE;
+    const c = porChave[chave] || (porChave[chave] = { confirmados: 0, convidados: 0 });
+    c.convidados++;
+    if (confirmou(ev, mid)) c.confirmados++;
+  }));
+  const linhas = ordem.map(e => ({ chave: e.chave, nome: e.nome }))
+    .concat([{ chave: CHAVE_SAIU_DO_CLUBE, nome: 'Saíram do clube' }])
+    .filter(l => porChave[l.chave])
+    .map(l => ({ ...l, ...porChave[l.chave], pct: pct(porChave[l.chave].confirmados, porChave[l.chave].convidados) }));
+  const confirmados = linhas.reduce((s, l) => s + l.confirmados, 0);
+  const convidados = linhas.reduce((s, l) => s + l.convidados, 0);
+
+  const divisoes = ordem.filter(e => e.chave !== 'regional').map(e => {
+    const evs = encerrados.filter(ev => ev.categoria === e.chave && state.reportData[ev.id]);
+    let c = 0, t = 0;
+    evs.forEach(ev => ev.memberIds.forEach(mid => { t++; if (confirmou(ev, mid)) c++; }));
+    return { chave: e.chave, nome: e.nome, eventos: evs.length, confirmados: c, convidados: t, pct: pct(c, t) };
+  });
+
+  return {
+    faltaCarregar,
+    regional: { eventos: doRegional.length, confirmados, convidados, pct: pct(confirmados, convidados), porDivisao: linhas },
+    divisoes,
+  };
 }
 
 // Roster visivel no painel de Relatorios, respeitando o mesmo filtro de
@@ -199,11 +238,11 @@ function membrosVisiveisRelatorio() {
 // integrante" (que mistura confirmado/aguardando/faltas justificadas na
 // mesma media) porque infracional e o dado que interessa pra acao
 // disciplinar, e fica diluido demais dentro de uma % geral.
-export function rankingFaltasInfracionais(encerrados, meses) {
-  const corte = meses ? dataCorteMeses(meses) : '';
+// encerrados ja vem no periodo do Resumo (eventosDoRelatorioEscopo).
+export function rankingFaltasInfracionais(encerrados) {
   const porMembro = {};
   encerrados.forEach(ev => {
-    if (!ev.data || ev.data < corte) return;
+    if (!ev.data) return;
     const statusData = state.reportData[ev.id];
     if (!statusData) return;
     ev.memberIds.forEach(mid => {
@@ -219,17 +258,16 @@ export function rankingFaltasInfracionais(encerrados, meses) {
     .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome));
 }
 
-// Resumo de um grafico (chave = 'total' ou um TIPOS_EVENTO) numa janela de
-// meses: soma por status (pro donut), % geral e a lista de eventos que
-// entraram na conta (pro drill-down em "Ver eventos").
-export function resumoDonutPeriodo(encerrados, chave, meses) {
-  const corte = meses ? dataCorteMeses(meses) : '';
+// Resumo de um grafico (chave = 'total' ou um TIPOS_EVENTO) no periodo do
+// Resumo (encerrados ja vem filtrado): soma por status (pro donut), % geral
+// e a lista de eventos que entraram na conta (pro drill-down em "Ver eventos").
+export function resumoDonutPeriodo(encerrados, chave) {
   const doGrupo = encerrados.filter(ev => chave === 'total' || ev.tipo === chave);
   let somaConfirmados = 0, somaConvidados = 0, eventosNoPeriodo = 0, faltaCarregar = false;
   const statusPeriodo = { confirmado: 0, aguardando: 0, justificada: 0, infracional: 0 };
   const itens = [];
   doGrupo.forEach(ev => {
-    if (!ev.data || ev.data < corte) return;
+    if (!ev.data) return;
     if (!state.reportData[ev.id]) { faltaCarregar = true; return; }
     const c = computeCounts(ev);
     const total = ev.memberIds.length;
@@ -238,7 +276,7 @@ export function resumoDonutPeriodo(encerrados, chave, meses) {
     eventosNoPeriodo++;
     statusPeriodo.confirmado += c.confirmado;
     statusPeriodo.aguardando += c.aguardando;
-    statusPeriodo.justificada += c.familia + c.trabalho + c.justificada;
+    statusPeriodo.justificada += somaJustificadas(c);
     statusPeriodo.infracional += c.infracional;
     itens.push({ ev, confirmado: c.confirmado, total, pct: total ? Math.round((c.confirmado / total) * 100) : null });
   });
@@ -288,15 +326,12 @@ export function estatisticasMembrosPorTipo(tipo) {
   return estatisticasDeContagem(membrosVisiveisRelatorio(), contarConfirmacoesPorMembro(eventosTipo));
 }
 
-// % de cada integrante dentro de uma janela de tempo (1/3/6/12 meses) - usa
-// o mesmo corte de data do card "Presença total" (dataCorteMeses,
-// resumoDonutPeriodo), pra nao mostrar uma % "desde sempre" embaixo de
-// donuts que ja tem um periodo escolhido. Calculado no navegador a partir de
+// % de cada integrante no periodo do Resumo (o mesmo dos graficos, que
+// eventosDoRelatorioEscopo ja aplica). Calculado no navegador a partir de
 // state.reportData (ja carregado pra aba Resumo Relatorio inteira), sem
 // round-trip novo ao servidor.
-export function estatisticasMembrosPorPeriodo(meses) {
-  const corte = meses ? dataCorteMeses(meses) : '';
-  const eventosNoPeriodo = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado' && e.data && e.data >= corte);
+export function estatisticasMembrosPorPeriodo() {
+  const eventosNoPeriodo = eventosDoRelatorioEscopo().filter(e => e.status === 'encerrado' && e.data);
   return estatisticasDeContagem(membrosVisiveisRelatorio(), contarConfirmacoesPorMembro(eventosNoPeriodo));
 }
 
@@ -321,7 +356,7 @@ export function historicoMembro(membroId) {
     if (presencas) {
       convites++;
       if (status === 'confirmado') confirmacoes++;
-      else if (status === 'familia' || status === 'trabalho' || status === 'justificada') justificadas++;
+      else if (ehJustificada(status)) justificadas++;
       else if (status === 'infracional') infracionais++;
     }
     return {

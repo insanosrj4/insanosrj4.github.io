@@ -133,14 +133,25 @@ export const STATUS = {
   confirmado: { emoji: '✅', label: 'Confirmado' },
   familia: { emoji: '❌', label: 'Família' },
   trabalho: { emoji: '❌', label: 'Trabalho' },
+  // Desde 23/11/2026 (pedido do clube): mais duas justificativas.
+  saude: { emoji: '❌', label: 'Saúde' },
+  viagem: { emoji: '❌', label: 'Viagem' },
   // So aparecem em eventos criados pela tela "Relatorios" (colar convocacao) -
-  // o picker manual continua limitado a STATUS_PICKER_KEYS, os 4 de cima.
+  // o picker manual continua limitado a STATUS_PICKER_KEYS, os 6 de cima.
   // "infracional" cobre tanto falta sem justificativa quanto quem nao
   // respondeu a convocacao (mesmo tratamento, decisao do clube).
   justificada: { emoji: '❌', label: 'Justificada' },
   infracional: { emoji: '⭕', label: 'Não justificada' }
 };
-export const STATUS_PICKER_KEYS = ['aguardando', 'confirmado', 'familia', 'trabalho'];
+export const STATUS_PICKER_KEYS = ['aguardando', 'confirmado', 'familia', 'trabalho', 'saude', 'viagem'];
+// Os motivos de falta justificada que a pessoa escolhe (com o motivo ao lado
+// do nome nos relatorios), na ordem do seletor. Com o "Justificada" da
+// convocacao colada, sao as faltas justificadas: todas contam juntas.
+export const MOTIVOS_JUSTIFICADA = ['familia', 'trabalho', 'saude', 'viagem'];
+export const STATUS_JUSTIFICADOS = [...MOTIVOS_JUSTIFICADA, 'justificada'];
+export function ehJustificada(st) { return STATUS_JUSTIFICADOS.includes(st); }
+// Soma as faltas justificadas de uma contagem por status ({ familia: 2, ... }).
+export function somaJustificadas(c) { return STATUS_JUSTIFICADOS.reduce((s, k) => s + ((c && c[k]) || 0), 0); }
 export const GRAUS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
 // Cargos dos graus VI e V, JA NA ORDEM HIERARQUICA - a posicao na lista e a
@@ -253,7 +264,8 @@ export const ABAS_COM_FILTRO_DIVISAO = ['resumo', ...TIPOS_EVENTO_TABS_ORDEM];
 
 export const STATUS_TOTAIS_LABEL = {
   confirmado: 'confirmados', aguardando: 'aguardando', trabalho: 'faltas (trabalho)',
-  familia: 'faltas (família)', justificada: 'faltas justificadas', infracional: 'faltas não justificadas'
+  familia: 'faltas (família)', saude: 'faltas (saúde)', viagem: 'faltas (viagem)',
+  justificada: 'faltas justificadas', infracional: 'faltas não justificadas'
 };
 
 export const RELATORIO_PERIODOS = [1, 6, 12];

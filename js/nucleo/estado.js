@@ -544,21 +544,17 @@ export let state = {
   // eventosDoRelatorioEscopo()/membrosVisiveisRelatorio().
   relatorioFiltroDivisao: 'todas',
   // Filtro de periodo (data inicial/final, 'yyyy-mm-dd') do painel de
-  // Relatorios - vazio nos dois = sem filtro (desde sempre). Diferente do
-  // seletor "1/3/6/12 meses" de cada donut (relatorioPeriodoPorGrafico, uma
-  // janela relativa que sempre termina hoje), este e um intervalo fixo
-  // escolhido a mao, pra tirar um relatorio de um mes especifico por
-  // exemplo. Ver eventosDoRelatorioEscopo().
+  // Relatorios (as abas por tipo) - vazio nos dois = sem filtro (desde
+  // sempre). Ver eventosDoRelatorioEscopo().
   relatorioFiltroDataInicio: '',
   relatorioFiltroDataFim: '',
-  // No Resumo, as datas do card "Gerar relatorio" (so pro relatorio gerado;
-  // vazio = ultimo mes) e o "montando o relatorio agora" - ver
+  // O periodo do Resumo: as datas do card "Gerar relatorio" (vazio = os
+  // botoes de meses), que valem pra pagina inteira e pro relatorio - ver
   // periodoDoRelatorioGerado em dominio/estatisticas.js.
   relatorioGerarInicio: '',
   relatorioGerarFim: '',
   // Os botoes 1/6/12 meses do card (valem com as datas em branco).
   relatorioGerarMeses: 1,
-  relatorioGerando: false,
   // "Exportar para PDF" de dentro do Modo organizador (aba Eventos) - so
   // trava o botao enquanto pula pra tela de Relatorios e carrega os dados,
   // ver exportarRelatorioPdfAdmin().
@@ -605,10 +601,6 @@ exportandoPdfAdmin: false,
   // "Todas as divisões").
   // Quais eventos tem o "Ver texto original" (ver renderCardEvento) aberto.
   relatorioTextoOriginalExpandido: new Set(),
-  // Janela (em meses) de cada donut do painel de Presenca - uma chave por
-  // grafico ('total' + um por TIPOS_EVENTO), cada um navega o proprio
-  // periodo independente dos outros.
-  relatorioPeriodoPorGrafico: { total: 1, 'Pub': 1, 'Bate e Volta': 1, 'Ação Social': 1, 'Reunião': 1, doacoes: 1 },
   // null = mostra o painel de donuts; um tipo (ou 'total') escolhido =
   // mostra o grafico de barras + tabela so dos eventos daquele grupo.
   relatorioTipoDetalhe: null,

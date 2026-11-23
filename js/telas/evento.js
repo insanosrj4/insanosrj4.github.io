@@ -218,6 +218,7 @@ export function renderEvent(app) {
     <div class="legend">
       ⚠️ Aguardando confirmação &nbsp; ✅ Presença confirmada<br>
       ❌ Falta (Família) &nbsp; ❌ Falta (Trabalho)<br>
+      ❌ Falta (Saúde) &nbsp; ❌ Falta (Viagem)<br>
       🚀 Direto (vai por conta própria) &nbsp; 🚧 Voluntário destacado<br>
       🐯 Acompanhado<br>
       ${FUNCOES.map(f => `${f.selo} ${escapeHtml(f.label)}`).join(' &nbsp; ')}

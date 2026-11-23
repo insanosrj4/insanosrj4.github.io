@@ -249,6 +249,24 @@ log('=== encerrar converte quem não respondeu ===');
 }
 
 log('');
+log('=== Saúde e Viagem são falta justificada (23/11/2026) ===');
+{
+  // Um status que o Code.gs não conhece vira Aguardando ao gravar, e
+  // Aguardando vira falta não justificada ao encerrar. As duas novas
+  // justificativas têm que sobreviver ao encerramento.
+  const p = montaPlanilha([ev('venceu', daquiA(-1), 'ativo')],
+    [pr('venceu', 'm1', 'Aguardando'), pr('venceu', 'm2', 'Aguardando')]);
+  const { contexto } = carregaCodeGs(p);
+  contexto.salvarPresenca({ eventoId: 'venceu', membroId: 'm1', status: 'saude' });
+  contexto.salvarPresenca({ eventoId: 'venceu', membroId: 'm2', status: 'viagem' });
+  confere('grava Saude e Viagem na planilha', coluna(p, 'Presencas', 4), ['Saude', 'Viagem']);
+  contexto.encerrarEventosVencidos();
+  confere('encerrar não transforma Saude e Viagem em falta', coluna(p, 'Presencas', 4), ['Saude', 'Viagem']);
+  confere('a planilha lê de volta as chaves certas',
+    ['Saude', 'Viagem'].map(r => contexto.statusParaChave(r)), ['saude', 'viagem']);
+}
+
+log('');
 log('=== reabrir devolve quem não respondeu pra Aguardando ===');
 {
   // Encerrar sem querer e reabrir deixava a falta valendo num evento que

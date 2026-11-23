@@ -1,7 +1,7 @@
 // Graficos em SVG: rosca, sparkline e o ranking de faltas.
 
-import { janelaDoGrafico, rankingFaltasInfracionais, resumoDonutPeriodo, rotuloDaJanela } from '../dominio/estatisticas.js';
-import { RELATORIO_PERIODOS, emojiTipoEvento } from '../nucleo/config.js';
+import { rankingFaltasInfracionais, resumoDonutPeriodo, textoDoPeriodoGerado } from '../dominio/estatisticas.js';
+import { emojiTipoEvento } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { escapeHtml, formatDataBR } from '../nucleo/util.js';
 import { render } from '../nucleo/render.js';
@@ -109,7 +109,7 @@ export function renderPizza(segments, tamanho, vazio) {
 }
 
 // Status agrupado em 4 fatias (confirmado/aguardando/faltas justificadas/
-// faltas infracionais) para o donut - familia+trabalho+justificada viram
+// faltas infracionais) para o donut - as faltas justificadas viram
 // uma unica fatia, igual ao que buildReportText ja agrupa.
 // So 3 fatias - eventos encerrados nunca deveriam ter "Aguardando" de
 // verdade (ver statusEfetivo), entao esse status nem entra no donut.
@@ -121,19 +121,18 @@ export function segmentosDonutStatus(statusPeriodo) {
   ];
 }
 
-// Painel opcional acima de "% de cada integrante", no mesmo periodo
-// escolhido pro card "Presenca total" (ver renderDonutCard) - some sozinho
+// Painel opcional acima de "% de cada integrante", no periodo do Resumo
+// (o do card "Gerar relatorio") - some sozinho
 // quando ninguem tem falta infracional no periodo, pra nao virar um card
 // vazio disputando espaco com o resto do resumo.
 export function renderRankingFaltasInfracionais(encerrados) {
-  const meses = janelaDoGrafico('total');
   const mostrarDivisao = state.adminEscopo === 'regional' && state.relatorioFiltroDivisao === 'todas';
-  const ranking = rankingFaltasInfracionais(encerrados, meses).filter(r => r.total > 0).slice(0, 8);
+  const ranking = rankingFaltasInfracionais(encerrados).filter(r => r.total > 0).slice(0, 8);
   if (!ranking.length) return '';
   return `
     <div class="card" style="margin-top:14px;">
       <div class="painel-titulo" style="margin-bottom:2px;">⚠️ Mais faltas não justificadas</div>
-      <div style="color:var(--text-muted); font-size:12px; margin-bottom:8px;">Período: ${escapeHtml(rotuloDaJanela(meses))}</div>
+      <div style="color:var(--text-muted); font-size:12px; margin-bottom:8px;">🗓️ ${escapeHtml(textoDoPeriodoGerado())}</div>
       ${ranking.map(r => `
         <div class="info-line" style="display:flex; justify-content:space-between; align-items:center;">
           <span>${escapeHtml(r.nome)}${mostrarDivisao && r.divisao ? ` <span style="color:var(--text-muted); font-size:11.5px;">· ${escapeHtml(r.divisao)}</span>` : ''}</span>
@@ -144,7 +143,7 @@ export function renderRankingFaltasInfracionais(encerrados) {
   `;
 }
 
-// Um card do painel: titulo, chips de periodo proprios, donut e a contagem
+// Um card do painel: titulo, o periodo do Resumo, donut e a contagem
 // de eventos embaixo - "total" vem maior e centralizado (destaque = true).
 // Linha de tendencia (sparkline) em SVG puro - mesma tecnica de
 // stroke-dasharray/path do donut, sem lib nenhuma. So conecta pontos com %
@@ -207,20 +206,12 @@ export function esqueletoLista(linhas = 4) {
 }
 
 export function renderDonutCard(titulo, chave, encerrados, destaque) {
-  const meses = janelaDoGrafico(chave);
-  const r = resumoDonutPeriodo(encerrados, chave, meses);
+  const r = resumoDonutPeriodo(encerrados, chave);
   const emoji = chave === 'total' ? '🏁' : emojiTipoEvento(chave);
   return `
     <div class="card donut-card${destaque ? ' donut-card-total' : ''}">
       <div class="painel-titulo">${emoji} ${escapeHtml(titulo)}</div>
-      ${meses ? `
-        <div class="pilulas-periodo no-print">
-          ${RELATORIO_PERIODOS.map(m => `
-            <button class="pilula ${meses === m ? 'active' : ''}" data-action="set-relatorio-periodo-tipo" data-chave="${escapeHtml(chave)}" data-value="${m}">${m === 1 ? '1 mês' : m + ' meses'}</button>
-          `).join('')}
-        </div>
-        <div class="print-only" style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">Período: ${escapeHtml(rotuloDaJanela(meses))}</div>
-      ` : `<div style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">🗓️ ${escapeHtml(rotuloDaJanela(meses))}</div>`}
+      <div style="margin-bottom:10px; font-size:12px; color:var(--text-muted);">🗓️ ${escapeHtml(textoDoPeriodoGerado())}</div>
       ${r.faltaCarregar ? esqueletoRosca(destaque ? 150 : 110) : renderDonutChart(segmentosDonutStatus(r.statusPeriodo), r.pct === null ? '—' : r.pct + '%', 'presença', destaque ? 150 : 110)}
       <div class="info-line" style="padding:8px 0 0; color:var(--text-muted); font-size:12px;">
         ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento encerrado' : 'eventos encerrados'} nesse período
@@ -231,7 +222,7 @@ export function renderDonutCard(titulo, chave, encerrados, destaque) {
   `;
 }
 
-// Acoes dos graficos (trocar periodo, abrir detalhe do tipo).
+// Acoes dos graficos (tocar na fatia, abrir detalhe do tipo).
 // Cada entrada e o corpo do antigo "if (action === ...)" do app.js, tal
 // e qual. O app.js so olha o nome da acao neste mapa e chama.
 export const acoes = {
@@ -259,11 +250,6 @@ export const acoes = {
     const [n, pct] = arco.dataset.valor.split(' · ');
     valor.textContent = pct;
     legenda.textContent = rotulo + ' · ' + n;
-  },
-  'set-relatorio-periodo-tipo': async (id, target, action, e) => {
-    state.relatorioGerando = false;
-    state.relatorioPeriodoPorGrafico[target.dataset.chave] = Number(target.dataset.value);
-    return render();
   },
   'abrir-relatorio-tipo-detalhe': async (id, target, action, e) => {
     state.relatorioTipoDetalhe = target.dataset.value;

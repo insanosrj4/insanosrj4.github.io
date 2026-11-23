@@ -7,7 +7,7 @@
 
 import { eventosDoEscopo, membrosElegiveisEvento } from '../dominio/estatisticas.js';
 import { computeCounts, getReportGroups } from '../dominio/status.js';
-import { corTipoEvento, emojiTipoEvento, escopoPorChave, escoposAtivos, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { STATUS, STATUS_JUSTIFICADOS, corTipoEvento, emojiTipoEvento, escopoPorChave, escoposAtivos, escoposNaOrdemOficial, somaJustificadas } from '../nucleo/config.js';
 import { soAtivos } from '../dominio/movimentos.js';
 import { genId, state } from '../nucleo/estado.js';
 import { TIPO_HOME_IMAGEM } from '../nucleo/imagens.js';
@@ -427,7 +427,7 @@ export function renderAdminRelatorio() {
         </div>
         <div class="count-grid">
           <div class="count-box-report">✅ Confirmados <b>${n(counts.confirmado)}</b></div>
-          <div class="count-box-report">❌ Falta justificada <b>${n(counts.familia + counts.trabalho + counts.justificada)}</b></div>
+          <div class="count-box-report">❌ Falta justificada <b>${n(somaJustificadas(counts))}</b></div>
           <div class="count-box-report">⭕ Falta não justificada <b>${n(counts.infracional)}</b></div>
         </div>
         ${carregado ? botaoGerarRelatorio('encerrado:' + ev.id, [
@@ -480,22 +480,18 @@ function renderReportDetail(ev) {
       <div style="font-size:13.5px; color:var(--text); line-height:1.6;">${list.map(escapeHtml).join(', ')}</div>
     </div>
   ` : '';
-  // Familia, trabalho e justificada sao razoes de falta justificada - juntas
+  // As faltas justificadas (familia, trabalho, saude, viagem e justificada) - juntas
   // numa unica secao, com o motivo ao lado do nome (mesmo agrupamento de
   // buildReportText, pro texto copiado bater com o que aparece aqui). Sem
   // secao de "Nao responderam": evento encerrado nao tem mais esse status
   // (ver statusEfetivo) - quem nao respondeu ja caiu em Infracional.
-  const faltaJustificada = [
-    ...groups.familia.map(n => `${n} (Família)`),
-    ...groups.trabalho.map(n => `${n} (Trabalho)`),
-    ...groups.justificada.map(n => `${n} (Justificada)`),
-  ];
+  const faltaJustificada = STATUS_JUSTIFICADOS.flatMap(k => groups[k].map(n => `${n} (${STATUS[k].label})`));
   // Donut so aqui no detalhe expandido (nao no card recolhido) - senao toda
   // a lista de eventos encerrados ficaria mais alta a toa, so pra mostrar um
   // grafico que a maioria vai abrir so de vez em quando.
   const segmentos = segmentosDonutStatus({
     confirmado: counts.confirmado,
-    justificada: counts.familia + counts.trabalho + counts.justificada,
+    justificada: somaJustificadas(counts),
     infracional: counts.infracional
   });
   // Evento ainda aberto (relatorio parcial): quem nao respondeu entra na

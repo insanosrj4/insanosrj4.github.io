@@ -3,19 +3,15 @@
 import { agruparNomesPorDivisaoParaTexto, agruparStatsPorDivisao } from './divisoes.js';
 import { formatKg } from './doacoes.js';
 import { getReportGroups } from './status.js';
-import { divisoesSemRegional, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { STATUS, STATUS_JUSTIFICADOS, divisoesSemRegional, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { formatDataBR } from '../nucleo/util.js';
 
 export function buildReportText(ev) {
   const groups = getReportGroups(ev);
-  // Familia, trabalho e justificada sao razoes de falta justificada; juntas
+  // As faltas justificadas (familia, trabalho, saude, viagem e justificada)
   // viram uma unica secao "nao puderam ir", com o motivo ao lado de cada nome.
-  const naoPuderamIr = [
-    ...groups.familia.map(n => ({ nome: n, motivo: 'Família' })),
-    ...groups.trabalho.map(n => ({ nome: n, motivo: 'Trabalho' })),
-    ...groups.justificada.map(n => ({ nome: n, motivo: 'Justificada' })),
-  ];
+  const naoPuderamIr = STATUS_JUSTIFICADOS.flatMap(k => groups[k].map(n => ({ nome: n, motivo: STATUS[k].label })));
 
   const total = ev.memberIds.length;
   const percentual = total ? Math.round((groups.confirmado.length / total) * 100) : 0;
@@ -85,13 +81,14 @@ export function buildInsightReportText(r) {
 // (cada um no proprio periodo, como nos cards), quem mais faltou sem
 // justificar e o % de cada integrante, por divisao. `d` vem pronto da tela
 // (ver dadosDoResumo em telas/relatorios.js):
-// { escopo, filtro, datas, total, tipos: [{ tipo, emoji, meses, r }], faltas, mesesLista, membros }.
+// { escopo, filtro, datas, total, tipos: [{ tipo, emoji, r }], faltas, membros,
+//   doacoes, participacao } - participacao (so no Regional) e o
+// participacaoRegionalEDivisoes ja no filtro de divisao, ou null.
 export function textoResumoRelatorios(d) {
-  // Sem janela (null), vale o periodo escolhido - ja escrito na linha 🗓️.
-  const periodo = (m) => (m === 1 ? 'último mês' : `últimos ${m} meses`);
-  const traco = (m) => (m ? ` — ${periodo(m)}` : '');
-  const parenteses = (m) => (m ? ` (${periodo(m)})` : '');
-  const numeros = (r) => `${r.pct === null ? '—' : r.pct + '%'} (${r.somaConfirmados} de ${r.somaConvidados}) · ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`;
+  // Tudo no mesmo periodo, escrito uma vez na linha 🗓️.
+  const pct = v => (v === null ? '—' : v + '%');
+  const plural = n => `${n} ${n === 1 ? 'evento' : 'eventos'}`;
+  const numeros = (r) => `${pct(r.pct)} (${r.somaConfirmados} de ${r.somaConvidados}) · ${plural(r.eventosNoPeriodo)}`;
   const sp = d.total.r.statusPeriodo;
   const linhas = [
     '📋 *RELATÓRIO DE PRESENÇA*',
@@ -100,29 +97,43 @@ export function textoResumoRelatorios(d) {
   if (d.datas) linhas.push('🗓️ ' + d.datas);
   linhas.push(
     '',
-    `🏁 *Presença total*${traco(d.total.meses)}`,
+    '🏁 *Presença total*',
     '📊 ' + numeros(d.total.r),
     `✅ ${sp.confirmado} · ❌ ${sp.justificada} justificadas · ⭕ ${sp.infracional} não justificadas`,
+  );
+  // Regional e divisoes separados (23/11/2026): a % do Regional com as
+  // divisoes que formam ela, e cada divisao nos eventos dela.
+  const p = d.participacao;
+  if (p) {
+    const reg = p.regional;
+    linhas.push('', '🏍️ *EVENTOS DO REGIONAL*', `📊 ${pct(reg.pct)} (${reg.confirmados} de ${reg.convidados}) · ${plural(reg.eventos)}`,
+      ...reg.porDivisao.map(l => `- ${l.nome}: ${pct(l.pct)} (${l.confirmados} de ${l.convidados})`));
+    if (p.divisoes.length) {
+      linhas.push('', '🏠 *EVENTOS DE DIVISÃO*', '_Cada divisão nos eventos dela._',
+        ...p.divisoes.map(x => `- ${x.nome}: ${pct(x.pct)}${x.convidados ? ` (${x.confirmados} de ${x.convidados})` : ''} · ${plural(x.eventos)}`));
+    }
+  }
+  linhas.push(
     '',
     '*POR TIPO*',
-    ...d.tipos.map(t => `${t.emoji} ${t.tipo}${parenteses(t.meses)}: ${numeros(t.r)}`),
+    ...d.tipos.map(t => `${t.emoji} ${t.tipo}: ${numeros(t.r)}`),
   );
   // As doacoes (04/11/2026): o mesmo numero do card 🥫, sem nomes.
   const dd = d.doacoes && d.doacoes.r;
   if (dd) {
     const conta = x => `${x.pct === null ? '—' : x.pct + '%'} (${x.levaram} de ${x.foram}) · ${formatKg(x.kg)} · ${x.eventos} ${x.eventos === 1 ? 'evento' : 'eventos'}`;
-    linhas.push('', `🥫 *Doações de alimento*${traco(d.doacoes.meses)}`, '📊 ' + conta(dd));
+    linhas.push('', '🥫 *Doações de alimento*', '📊 ' + conta(dd));
     if (d.doacoes.varias) dd.porDivisao.forEach(x => linhas.push(`- ${x.nome}: ${conta(x)}`));
     linhas.push('_Dos ✅ confirmados em cada evento, quantos levaram alimento._');
     if (dd.semMarcacao) linhas.push(`_${dd.semMarcacao} ${dd.semMarcacao === 1 ? 'evento sem doação marcada ficou' : 'eventos sem doação marcada ficaram'} de fora._`);
   }
   if (d.faltas.length) {
-    linhas.push('', `⭕ *MAIS FALTAS NÃO JUSTIFICADAS*${parenteses(d.mesesLista)}`,
+    linhas.push('', '⭕ *MAIS FALTAS NÃO JUSTIFICADAS*',
       ...d.faltas.map(f => `- ${f.nome}${d.filtro === 'Todas as divisões' && f.divisao ? ` (${f.divisao})` : ''}: ${f.total}`));
   }
   const grupos = agruparStatsPorDivisao(d.membros.filter(m => m.percentual !== null));
   if (grupos.length) {
-    linhas.push('', `*% DE CADA INTEGRANTE*${parenteses(d.mesesLista)}`);
+    linhas.push('', '*% DE CADA INTEGRANTE*');
     grupos.forEach(g => {
       linhas.push(`_${g.divisao}_`, ...g.itens.map(m => `- ${m.nome}: ${m.percentual}% (${m.confirmacoes} de ${m.convites})`));
     });

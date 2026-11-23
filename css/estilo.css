@@ -573,7 +573,7 @@ label {
 .status-confirmado { color: #0A0A0A; background: var(--white-strong); border: 1px solid var(--white-strong); font-weight: 700; }
 .status-falta { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--line); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 .status-familia { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--line); text-decoration: line-through; text-decoration-color: var(--line-strong); }
-.status-trabalho { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--line); text-decoration: line-through; text-decoration-color: var(--line-strong); }
+.status-trabalho, .status-saude, .status-viagem { color: var(--text-muted); background: var(--surface-alt); border: 1px solid var(--line); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 /* So usados na Ficha do membro (historico evento a evento) - "justificada"
    e "infracional" nunca aparecem no picker manual (STATUS_PICKER_KEYS),
    entao nao tinham selo proprio ate agora. */
@@ -2056,7 +2056,7 @@ input.busca-membro:focus { border-color: rgba(245, 243, 236, 0.45); box-shadow: 
 .picker-emoji { font-size: 17px; line-height: 1; }
 .picker-confirmado { --cor-status: var(--status-confirmado); }
 .picker-aguardando { --cor-status: var(--status-aguardando); }
-.picker-familia, .picker-trabalho { --cor-status: var(--status-infracional); }
+.picker-familia, .picker-trabalho, .picker-saude, .picker-viagem { --cor-status: var(--status-infracional); }
 .picker-btn[class*="picker-"] { border-color: color-mix(in srgb, var(--cor-status, #888) 35%, transparent); }
 .picker-btn[class*="picker-"].active {
   border-color: var(--cor-status);
@@ -2252,7 +2252,7 @@ body.com-previa { overflow: hidden; }
   box-shadow: 0 0 0 3px rgba(14, 14, 13, 0.9), 0 0 10px -1px var(--cor-marco, transparent);
 }
 .marco-confirmado { --cor-marco: var(--status-confirmado); }
-.marco-familia, .marco-trabalho, .marco-justificada { --cor-marco: var(--status-justificada); }
+.marco-familia, .marco-trabalho, .marco-saude, .marco-viagem, .marco-justificada { --cor-marco: var(--status-justificada); }
 .marco-infracional { --cor-marco: var(--status-infracional); }
 
 /* ---- Saudacao da tela inicial ---- */

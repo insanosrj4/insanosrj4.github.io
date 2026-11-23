@@ -7,7 +7,7 @@
 // Um evento: { id, nome, data, horario, endereco, status,
 //   presencas: [{ membroId, nome, grau, divisao, status }] }.
 
-import { MESES_ABREV, STATUS, escopoPorChave, escoposNaOrdemOficial } from '../nucleo/config.js';
+import { MESES_ABREV, MOTIVOS_JUSTIFICADA, STATUS, STATUS_JUSTIFICADOS, ehJustificada, escopoPorChave, escoposNaOrdemOficial, somaJustificadas } from '../nucleo/config.js';
 import { dataCorteMeses, formatDataBR, hojeISO, ordenarPorHierarquia } from '../nucleo/util.js';
 import { estaAfastado, movimentosDoPeriodo, rotuloPeriodoMovimentos } from './movimentos.js';
 
@@ -46,14 +46,13 @@ export function eventosDaFuncao(eventos, chave, roster) {
 
 // Os status que o organizador marca: os da confirmacao, sem o Aguardando
 // (ele e o "ainda nao marquei", e volta sozinho no Reabrir).
-export const STATUS_MARCAVEIS = ['confirmado', 'familia', 'trabalho', 'justificada', 'infracional'];
+export const STATUS_MARCAVEIS = ['confirmado', ...MOTIVOS_JUSTIFICADA, 'justificada', 'infracional'];
 export function statusMarcaveis(chave) { return dadosDaFuncao(chave).marcaveis || STATUS_MARCAVEIS; }
 // A funcao sem justificativa: toda falta e uma so, o ❌ Faltou. Nas contas
-// abaixo, Familia, Trabalho e Justificada (marcadas antes da regra) somam
+// abaixo, as justificadas (marcadas antes da regra) somam
 // na falta, e as justificadas ficam zeradas.
 export function soFalta(chave) { return !statusMarcaveis(chave).includes('justificada'); }
-const JUSTIFICADAS = ['familia', 'trabalho', 'justificada'];
-export function statusDaConta(st, chave) { return chave && soFalta(chave) && JUSTIFICADAS.includes(st) ? 'infracional' : st; }
+export function statusDaConta(st, chave) { return chave && soFalta(chave) && ehJustificada(st) ? 'infracional' : st; }
 
 // "Barra - RJ4" -> "Barra"; "Regional RJ4" -> "Regional".
 export function divisaoCurta(nome) { return String(nome || '').replace(/\s*-?\s*RJ4$/, '') || 'Sem divisão'; }
@@ -89,17 +88,18 @@ export function statusNoEvento(ev, p, rascunho) {
 }
 
 export function contagemEvento(ev, rascunho, chave) {
-  const c = { confirmado: 0, familia: 0, trabalho: 0, justificada: 0, infracional: 0, aguardando: 0 };
-  (ev.presencas || []).forEach(p => { c[statusDaConta(statusNoEvento(ev, p, rascunho), chave)]++; });
+  const c = Object.fromEntries(['confirmado', ...STATUS_JUSTIFICADOS, 'infracional', 'aguardando'].map(k => [k, 0]));
+  (ev.presencas || []).forEach(p => { const st = statusDaConta(statusNoEvento(ev, p, rascunho), chave); c[st in c ? st : 'aguardando']++; });
   const total = (ev.presencas || []).length;
-  return { ...c, total, justificadas: c.familia + c.trabalho + c.justificada, pct: total ? Math.round(c.confirmado / total * 100) : null };
+  return { ...c, total, justificadas: somaJustificadas(c), pct: total ? Math.round(c.confirmado / total * 100) : null };
 }
 
 // Os nomes de cada status, por divisao na ordem oficial: "Costa (Barra)".
 function nomesPorStatus(ev, chave) {
-  const g = { confirmado: [], familia: [], trabalho: [], justificada: [], infracional: [], aguardando: [] };
+  const g = Object.fromEntries(['confirmado', ...STATUS_JUSTIFICADOS, 'infracional', 'aguardando'].map(k => [k, []]));
   porDivisaoNaOrdemOficial(ev.presencas || []).forEach(grupo => grupo.itens.forEach(p => {
-    g[statusDaConta(statusNoEvento(ev, p), chave)].push(`${p.nome} (${divisaoCurta(p.divisao)})`);
+    const st = statusDaConta(statusNoEvento(ev, p), chave);
+    g[st in g ? st : 'aguardando'].push(`${p.nome} (${divisaoCurta(p.divisao)})`);
   }));
   return g;
 }
@@ -128,11 +128,7 @@ export function textoEventoFuncao(ev, chave) {
   // Sem justificativa (Caveiras), a falta e uma so e nao ha "nao puderam ir".
   const semJustificativa = soFalta(chave);
   if (!semJustificativa) {
-    const naoPuderam = [
-      ...g.familia.map(n => `${n} - Família`),
-      ...g.trabalho.map(n => `${n} - Trabalho`),
-      ...g.justificada.map(n => `${n} - Justificada`),
-    ];
+    const naoPuderam = STATUS_JUSTIFICADOS.flatMap(k => g[k].map(n => `${n} - ${STATUS[k].label}`));
     linhas.push(`❌ NÃO PUDERAM IR (${naoPuderam.length})`, ...lista(naoPuderam, 'Ninguém'), '');
   }
   const titulo = semJustificativa ? '❌ FALTARAM' : '⭕ FALTA NÃO JUSTIFICADA';

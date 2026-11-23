@@ -7,7 +7,7 @@
 // e imagens carregando). Gerando antes e compartilhando no toque do botao
 // da previa, o compartilhamento funciona em todo celular.
 
-import { divisoesSemRegional, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao } from '../nucleo/config.js';
+import { divisoesSemRegional, emojiTipoEvento, escopoPorChave, escoposEmOrdemDeExibicao, somaJustificadas } from '../nucleo/config.js';
 import { IMG_FUNDO, LOGO_SRC } from '../nucleo/imagens.js';
 import { diaDaSemana, formatDataBR, mostrarAviso } from '../nucleo/util.js';
 import { formatReais, nomeCurtoDoMes, nomeDoMes } from '../dominio/caixinha.js';
@@ -239,7 +239,7 @@ function listaRanking(ctx, linhas, y, alturaLinha, { semPodio } = {}) {
 export async function imagemResultadoEvento(ev, contagem) {
   const { canvas, ctx, logo } = await novaTela();
   const total = (ev.memberIds || []).length;
-  const justificadas = contagem.familia + contagem.trabalho + contagem.justificada;
+  const justificadas = somaJustificadas(contagem);
   // Evento ainda aberto: quem nao respondeu ainda pode responder, entao fica
   // na fatia cinza de Aguardando, e nao somado as faltas.
   const parcial = ev.status !== 'encerrado';
@@ -540,12 +540,11 @@ export async function imagemCarteirinha(c) {
 }
 
 // ---------------------------------------------------------------------------
-// O Resumo dos Relatorios: a presenca total e a de cada tipo, cada um no
-// proprio periodo. Sem nomes - quem faltou e do texto. `d` e o mesmo
+// O Resumo dos Relatorios: a presenca total e a de cada tipo, no periodo
+// escolhido (escrito embaixo do titulo). Sem nomes - quem faltou e do texto. `d` e o mesmo
 // objeto do textoResumoRelatorios.
 export async function imagemResumoRelatorios(d) {
   const { canvas, ctx, logo } = await novaTela();
-  const periodo = (m) => (m === 1 ? 'ÚLTIMO MÊS' : `ÚLTIMOS ${m} MESES`);
   const r = d.total.r;
   const sp = r.statusPeriodo;
   emblema(ctx, logo, 45, 150);
@@ -565,8 +564,7 @@ export async function imagemResumoRelatorios(d) {
   y = cy + raio + 50;
   fonte(ctx, 30, 700);
   ctx.fillStyle = COR.texto;
-  // Sem janela (null), vale o periodo escolhido - ja escrito embaixo do titulo.
-  ctx.fillText(`🏁 Total · ${d.total.meses ? periodo(d.total.meses).toLowerCase() + ' · ' : ''}${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`, L / 2, y);
+  ctx.fillText(`🏁 Total · ${r.eventosNoPeriodo} ${r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`, L / 2, y);
   fonte(ctx, 26, 600);
   ctx.fillStyle = COR.apagado;
   ctx.fillText(`✅ ${sp.confirmado}     ❌ ${sp.justificada} justificadas     ⭕ ${sp.infracional} não justificadas`, L / 2, y + 44);
@@ -574,18 +572,69 @@ export async function imagemResumoRelatorios(d) {
   y += 80;
   const linhas = d.tipos.map(t => ({
     nome: `${t.emoji} ${t.tipo}`, pct: t.r.pct,
-    detalhe: `${t.r.eventosNoPeriodo} ${t.r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}${t.meses ? ` · ${t.meses === 1 ? '1 mês' : t.meses + ' meses'}` : ''}`,
+    detalhe: `${t.r.eventosNoPeriodo} ${t.r.eventosNoPeriodo === 1 ? 'evento' : 'eventos'}`,
   }));
   // As doacoes (04/11/2026): o cumprimento, com os kg ao lado.
   const dd = d.doacoes && d.doacoes.r;
   if (dd) {
     linhas.push({ nome: '🥫 Doações', pct: dd.pct,
-      detalhe: `${formatKg(dd.kg)}${d.doacoes.meses ? ` · ${d.doacoes.meses === 1 ? '1 mês' : d.doacoes.meses + ' meses'}` : ''}` });
+      detalhe: formatKg(dd.kg) });
   }
   listaRanking(ctx, linhas, y, Math.min(96, (A - 170 - y) / Math.max(1, linhas.length)), { semPodio: true });
 
   rodape(ctx);
-  return canvas;
+  if (!d.participacao || d.participacao.faltaCarregar) return canvas;
+  return [canvas, ...await imagensRegionalEDivisoes(d)];
+}
+
+// As imagens do Regional e divisoes no Resumo (23/11/2026): a % do Regional
+// com as divisoes que formam ela, e cada divisao nos eventos dela. Do mesmo
+// tamanho da 1a. Os dois blocos numa imagem quando cabem com folga; senao
+// uma imagem por bloco, em vez de espremer as linhas.
+const LINHA_PARTICIPACAO = 78, TOPO_PARTICIPACAO = 400, FIM_PARTICIPACAO = A - 120, TITULO_BLOCO = 74;
+async function imagensRegionalEDivisoes(d) {
+  const p = d.participacao, reg = p.regional;
+  const pct = v => (v === null ? '—' : `${v}%`);
+  const plural = n => `${n} ${n === 1 ? 'evento' : 'eventos'}`;
+  const blocos = [{
+    titulo: `🏍️ Eventos do Regional · ${pct(reg.pct)} · ${plural(reg.eventos)}`,
+    linhas: reg.porDivisao.map(l => ({ nome: l.nome, pct: l.pct, detalhe: `${l.confirmados} de ${l.convidados}` })),
+  }];
+  if (p.divisoes.length) {
+    blocos.push({
+      titulo: '🏠 Eventos de divisão · cada uma nos dela',
+      linhas: p.divisoes.map(x => ({ nome: x.nome, pct: x.pct, detalhe: plural(x.eventos) })),
+    });
+  }
+  const altura = b => TITULO_BLOCO + Math.max(1, b.linhas.length) * LINHA_PARTICIPACAO;
+  const cabem = blocos.reduce((s, b) => s + altura(b), 0) <= FIM_PARTICIPACAO - TOPO_PARTICIPACAO;
+  const paginas = cabem ? [blocos] : blocos.map(b => [b]);
+  return Promise.all(paginas.map(async pagina => {
+    const { canvas, ctx, logo } = await novaTela();
+    emblema(ctx, logo, 40, 120);
+    let y = tituloMetal(ctx, 'Regional e Divisões', 230, 56, 980);
+    rotuloEspacado(ctx, `${d.escopo.toUpperCase()}${d.filtro ? '  ·  ' + d.filtro.toUpperCase() : ''}`, y + 2, 22, COR.ouro);
+    if (d.datas) {
+      fonte(ctx, 24, 600);
+      ctx.fillStyle = COR.apagado;
+      ctx.fillText(d.datas, L / 2, y + 40);
+    }
+    y = TOPO_PARTICIPACAO;
+    pagina.forEach(b => {
+      fonte(ctx, 30, 700);
+      ctx.fillStyle = COR.texto;
+      ctx.fillText(b.titulo, L / 2, y + 30);
+      if (!b.linhas.length) {
+        fonte(ctx, 26, 600);
+        ctx.fillStyle = COR.apagado;
+        ctx.fillText('Nenhum evento nesse período.', L / 2, y + TITULO_BLOCO + 40);
+      }
+      y = listaRanking(ctx, b.linhas, y + TITULO_BLOCO, LINHA_PARTICIPACAO, { semPodio: true });
+      if (!b.linhas.length) y += LINHA_PARTICIPACAO;
+    });
+    rodape(ctx);
+    return canvas;
+  }));
 }
 
 // ---------------------------------------------------------------------------
