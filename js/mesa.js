@@ -174,6 +174,14 @@ async function copiar(texto, aviso) {
 
 // ---------- os toques ----------
 
+function abrirConfirmando(id, tipo) {
+  m.aberto = id;
+  m.confirmar = { tipo, destino: null };
+  m.tela = 'ficha';
+  desenhar();
+  window.scrollTo(0, 0);
+}
+
 const TOQUES = {
   escolher: (alvo) => {
     m.escopo = alvo.dataset.value;
@@ -192,15 +200,11 @@ const TOQUES = {
     desenhar();
     window.scrollTo(0, 0);
   },
-  // O ✅ Aprovar da lista abre a ficha ja com a confirmacao: quem aprova
-  // ve os dados antes de confirmar.
-  'aprovar-linha': (alvo) => {
-    m.aberto = alvo.dataset.id;
-    m.confirmar = { tipo: 'aprovar', destino: null };
-    m.tela = 'ficha';
-    desenhar();
-    window.scrollTo(0, 0);
-  },
+  // O ✅ Aprovar e o ❌ Desistiu da lista abrem a ficha ja com a
+  // confirmacao: nada e gravado no primeiro toque, e quem confirma ve os
+  // dados antes (pedido do Social Regional, 25/11/2026: evitar toque errado).
+  'aprovar-linha': (alvo) => abrirConfirmando(alvo.dataset.id, 'aprovar'),
+  'desistiu-linha': (alvo) => abrirConfirmando(alvo.dataset.id, 'desistiu'),
   fechar: () => {
     m.aberto = null;
     m.confirmar = null;

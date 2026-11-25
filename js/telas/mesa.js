@@ -96,7 +96,10 @@ function linha(p) {
         <div class="meta">${escapeHtml(p.nomeCompleto || '')}${p.enviadoEm ? ` · ${escapeHtml(p.enviadoEm.slice(0, 10))}` : ''}</div>
         <div class="mesa-linha-selo">${selo(p)}</div>
       </div>
-      <button class="btn mesa-aprovar-linha" data-mesa="aprovar-linha" data-id="${escapeHtml(p.id)}">✅ Aprovar</button>
+      <div class="mesa-linha-botoes">
+        <button class="btn mesa-aprovar-linha" data-mesa="aprovar-linha" data-id="${escapeHtml(p.id)}">✅ Aprovar</button>
+        <button class="btn danger mesa-desistiu-linha" data-mesa="desistiu-linha" data-id="${escapeHtml(p.id)}">❌ Desistiu</button>
+      </div>
     </div>`;
 }
 

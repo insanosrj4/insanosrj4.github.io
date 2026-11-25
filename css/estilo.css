@@ -3260,7 +3260,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .mesa-aviso { text-align: center; }
 .mesa-linha { gap: 10px; align-items: center; }
 .mesa-linha-selo { margin-top: 6px; }
-.mesa-aprovar-linha { flex-shrink: 0; padding: 8px 12px; font-size: 13px; }
+.mesa-linha-botoes { flex-shrink: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.mesa-aprovar-linha { padding: 8px 12px; font-size: 13px; }
+/* Menor que o Aprovar de proposito: o toque principal e aprovar. */
+.mesa-desistiu-linha { padding: 4px 10px; font-size: 11.5px; }
 .mesa-dado { align-items: center; }
 .mesa-copiar { flex-shrink: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: 8px;
   padding: 6px 9px; font-size: 15px; line-height: 1; cursor: pointer; }
