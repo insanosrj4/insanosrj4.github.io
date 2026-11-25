@@ -34,7 +34,7 @@ import { acoes as acoesAdminAcoesSociais, atualizarCampoAcaoSocial } from './tel
 import { acoes as acoesAdminCarteirinha, atualizarCampoCarteirinha } from './telas/admin-carteirinha.js';
 import { acoes as acoesAdminFuncoesEspeciais, atualizarCampoFuncoes } from './telas/admin-funcoes-especiais.js';
 import { acoes as acoesAdminPainelSocial, atualizarCampoPainelSocial } from './telas/admin-painel-social.js';
-import { acoes as acoesAdminPretendentes } from './telas/admin-pretendentes.js';
+import { acoes as acoesAdminPretendentes, atualizarCampoPretendente } from './telas/admin-pretendentes.js';
 import { acoes as acoesComuns, aplicarBusca } from './ui/comuns.js';
 import { acoes as acoesGraficos } from './ui/graficos.js';
 import { acoes as acoesHome } from './telas/home.js';
@@ -323,6 +323,7 @@ document.getElementById('app').addEventListener('input', (e) => {
     atualizarCampoCarteirinha(e.target);
     atualizarCampoFuncoes(e.target);
     atualizarCampoPainelSocial(e.target);
+    atualizarCampoPretendente(e.target);
     return;
   }
   if (e.target.id === 'mov-motivo') {
@@ -349,6 +350,8 @@ document.getElementById('app').addEventListener('input', (e) => {
   if (atualizarCampoPainelSocial(e.target)) return;
   // A ATA da reuniao dos sociais: so lembra o digitado.
   if (atualizarCampoAta(e.target)) return;
+  // O ✏️ Editar ficha dos Pretendentes: lembra (com a mascara), sem redesenhar.
+  if (atualizarCampoPretendente(e.target)) return;
   // O valor pago na Caixinha: acerta o selo e o total sem redesenhar, senao
   // o teclado do celular fecharia a cada numero.
   if (e.target.classList && e.target.classList.contains('caixinha-valor')) {

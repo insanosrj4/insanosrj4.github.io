@@ -3252,6 +3252,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 /* A ficha de cadastro dentro da carteirinha. */
 .cart-cadastro { margin-top: 12px; }
 .cart-cadastro .pret-parte { margin-top: 10px; }
+/* O ✏️ Editar ficha dos Pretendentes (25/11/2026). */
+.pret-editar-botao { margin-top: 10px; }
+.pret-editar-parte { margin-top: 16px; }
+.pret-editar-campo.com-erro input, .pret-editar-campo.com-erro .acao-escolha-opcao:not(.ativo) { border-color: rgba(217, 99, 90, 0.7); }
+.pret-editar-erro { color: #E09A92; font-size: 12.5px; margin-top: 4px; }
+.pret-editar-sem { margin-top: 6px; }
 /* A pagina da Mesa (mesa.html, 25/11/2026). */
 .mesa-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .mesa-topo .back-link { margin-bottom: 0; }

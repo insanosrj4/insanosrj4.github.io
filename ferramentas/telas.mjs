@@ -417,6 +417,18 @@ add('organizador / área ADM (oeste)', { isAdmin:true, adminEscopo:'oeste', orga
   add('pretendentes / confirmar aprovado (cadastrando)', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'bb', pretendenteConfirmar:{ tipo:'aprovar', destino:null }, pretendenteSalvando:true }, T.renderAdmin);
   add('pretendentes / confirmar desistiu', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'a', pretendenteConfirmar:{ tipo:'desistiu', destino:null } }, T.renderAdmin);
   add('pretendentes / ficha aprovada', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'dddd' }, T.renderAdmin);
+  // O ✏️ Editar ficha (25/11/2026).
+  const rascunho = (f, extra) => ({ ...Object.fromEntries(Object.entries(f).filter(([k]) => !['id','divisao','situacao','enviadoEm','atualizadoEm','membroId'].includes(k))),
+    nascimento:'21/05/1990', coletePagamento:'10/12/2026', ...extra });
+  add('pretendentes / editando', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'a',
+    pretendenteEditando:{ id:'a', valores: rascunho(fichas[0]), erros:[] } }, T.renderAdmin);
+  add('pretendentes / editando com erros', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'a',
+    pretendenteEditando:{ id:'a', valores: rascunho(fichas[0], { cpf:'111', complemento:'Não tem', pagamento:'À vista' }),
+      erros:[{ chave:'cpf', msg:'CPF inválido - confira os números.' }, { chave:'tipoSanguineo', msg:'Escolha: Tipo sanguíneo' }] } }, T.renderAdmin);
+  add('pretendentes / editando (salvando)', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'a',
+    pretendenteEditando:{ id:'a', valores: rascunho(fichas[0]), erros:[] }, pretendenteSalvando:true }, T.renderAdmin);
+  add('pretendentes / editando ficha aprovada', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'dddd',
+    pretendenteEditando:{ id:'dddd', valores: rascunho(comAprovado.find(f => f.id === 'dddd')), erros:[] } }, T.renderAdmin);
   // A pagina da Mesa (mesa.html, 25/11/2026): o desenho mora em telas/mesa.js
   // e recebe o estado da propria pagina, nao o do app.
   const M = await import(url('telas/mesa.js'));
@@ -1150,7 +1162,7 @@ const LIMPO = {
   funcoesForm:null, funcoesAberto:null, funcoesRascunho:{}, funcoesCorrigindo:false, funcoesApagarId:null, funcoesPeriodo:0,
   gerarRelatorioAberto:null,
   pretendentesDados:null, pretendentesCarregando:false, pretendentesErro:null, pretendenteAberto:null, pretendenteSalvando:false,
-  pretendenteConfirmar:null, pretendentesAprovadosAbertos:false, carteirinhaCadastro:null,
+  pretendenteConfirmar:null, pretendentesAprovadosAbertos:false, carteirinhaCadastro:null, pretendenteEditando:null,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

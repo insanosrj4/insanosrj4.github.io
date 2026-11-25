@@ -1970,6 +1970,23 @@ log('=== pretendentes: ✅ Aprovado cadastra o irmão, ❌ Desistiu apaga a fich
   confere('Desistiu apaga a ficha', [tenta('pretendenteRemover', { ...cur, id: idGato }).ok, fichas().some(x => x.nomeColete === 'Gato')], [true, false]);
   confere('o CPF dele pode mandar a ficha de novo', tenta('admissaoEnviar', { ...base, divisao: 'curicica', cpf: '123.456.789-09', nomeColete: 'Gato' }).ok, true);
 
+  // ✏️ Editar (25/11/2026): o ADM corrige a ficha.
+  const gato = fichas().find(x => x.nomeColete === 'Gato');
+  const corrigida = { ...base, cpf: '123.456.789-09', nomeColete: 'Gato Preto', celular: '21977776666', tipoSanguineo: 'B+',
+    convenio: 'Sim', convenioQual: 'Amil', alergia: 'Nao', condicao: 'Nao' };
+  confere('editar sem PIN é recusado', tenta('pretendenteEditar', { ...corrigida, id: gato.id }).ok, false);
+  confere('a Barra NÃO edita a ficha da Curicica', tenta('pretendenteEditar', { ...bar, ...corrigida, id: gato.id }).ok, false);
+  confere('campo inválido é recusado e nada muda', [tenta('pretendenteEditar', { ...cur, ...corrigida, id: gato.id, cpf: '111.111.111-11' }).ok,
+    fichas().find(x => x.id === gato.id).nomeColete], [false, 'Gato']);
+  confere('o CPF de OUTRA ficha é recusado', tenta('pretendenteEditar', { ...cur, ...corrigida, id: gato.id, cpf: '529.982.247-25' }).ok, false);
+  const ed = tenta('pretendenteEditar', { ...cur, ...corrigida, id: gato.id });
+  const depois = fichas().find(x => x.id === gato.id);
+  confere('a Curicica corrige: nome, celular e saúde novos', [ed.ok, ed.pretendente.nomeColete, depois.nomeColete, depois.celular, depois.tipoSanguineo, depois.convenioQual],
+    [true, 'Gato Preto', 'Gato Preto', '(21) 97777-6666', 'B+', 'Amil']);
+  confere('o ID, a divisão, a situação e o "Enviado em" ficam como estavam', [depois.id, depois.divisao, depois.situacao, depois.enviadoEm],
+    [gato.id, 'curicica', 'Em análise', gato.enviadoEm]);
+  confere('o mesmo CPF da própria ficha passa', tenta('pretendenteEditar', { ...cur, ...corrigida, id: gato.id, nomeColete: 'Gato' }).ok, true);
+
   // Remover (aprovou sem querer): a ficha volta pra Em analise.
   tenta('membroRemover', { ...cur, id: r.membroId });
   const devolvida = fichas().find(x => x.nomeColete === 'Lobo');

@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-25-mesa';
+var VERSAO = '2026-11-25-editar-ficha';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -391,7 +391,7 @@ var ACOES_PROTEGIDAS = [
   'funcaoConfigSalvar',
   // As fichas de admissao: CPF, RG e endereco. Enviar (admissaoEnviar) e
   // publico; ler e mexer, so com o PIN da divisao do link.
-  'pretendentes', 'pretendenteSituacao', 'pretendenteAprovar', 'pretendenteRemover',
+  'pretendentes', 'pretendenteSituacao', 'pretendenteAprovar', 'pretendenteRemover', 'pretendenteEditar',
   // A ficha de admissao de quem ja e irmao (na carteirinha): CPF, RG...
   'fichaCadastro',
   // O Registro: so o Regional le.
@@ -511,6 +511,7 @@ function executar(action, p) {
   if (action === 'pretendenteSituacao') return comTrava(function () { return mudarSituacaoPretendente(p); });
   if (action === 'pretendenteAprovar') return comTrava(function () { return aprovarPretendente(p); });
   if (action === 'pretendenteRemover') return comTrava(function () { return removerPretendente(p); });
+  if (action === 'pretendenteEditar') return comTrava(function () { return editarPretendente(p); });
   if (action === 'fichaCadastro') return lerFichaCadastro(p);
   throw new Error('Acao desconhecida: ' + action);
 }
@@ -620,7 +621,8 @@ var ROTULOS_REGISTRO = {
   funcaoEventoSalvar: 'Funções: evento', funcaoEventoStatus: 'Funções: situação do evento', funcaoEventoRemover: 'Funções: evento apagado',
   funcaoPresencasSalvar: 'Funções: presenças', funcaoConfigSalvar: 'Funções: ajuste',
   pretendenteSituacao: 'Pretendente: situação', admissaoEnviar: 'Ficha de admissão',
-  pretendenteAprovar: 'Pretendente aprovado', pretendenteRemover: 'Pretendente desistiu'
+  pretendenteAprovar: 'Pretendente aprovado', pretendenteRemover: 'Pretendente desistiu',
+  pretendenteEditar: 'Pretendente: ficha corrigida'
 };
 
 // O que entra no lugar de executar() nas duas portas (doGet e doPost): roda
@@ -674,7 +676,7 @@ function contextoAntesDoRegistro(action, p) {
     return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, String(p.membroId || '')) };
   }
   // O nome no colete do pretendente (nao e dado pessoal: e como o clube o chama).
-  if (action === 'pretendenteAprovar' || action === 'pretendenteRemover') {
+  if (action === 'pretendenteAprovar' || action === 'pretendenteRemover' || action === 'pretendenteEditar') {
     var pret = planilha().getSheetByName(ABA_PRETENDENTES);
     var linhaPret = pret ? acharLinha(pret, function (l) { return String(l[0]) === id; }) : null;
     return { nome: linhaPret ? String(linhaPret.valores[5] || '') : '' };
@@ -787,6 +789,8 @@ function detalheDoRegistro(a, p, r, antes) {
     case 'admissaoEnviar': x = [div(p.divisao)]; break;
     case 'pretendenteAprovar': x = [antes.nome || p.id, r.ok ? 'entrou na ' + div(r.divisao) + ' como grau X' : '', pelaMesa(p)]; break;
     case 'pretendenteRemover': x = [antes.nome || p.id, 'ficha apagada', pelaMesa(p)]; break;
+    // So o nome: o que foi corrigido pode ser CPF, endereco... e nao entra.
+    case 'pretendenteEditar': x = [antes.nome || p.id, p.nomeColete && p.nomeColete !== antes.nome ? 'agora ' + p.nomeColete : '']; break;
     default: x = [p.id];
   }
   return x.filter(function (v) { return v !== undefined && v !== null && String(v).trim() !== ''; }).join(' · ');
@@ -2840,7 +2844,33 @@ function receberFichaAdmissao(p) {
   if (ESCOPOS_VALIDOS.indexOf(divisao) === -1) throw new Error('Link sem divisao - peca o link certo ao ADM da sua divisao');
   // O campo-isca da pagina: gente nao ve, robo preenche. Finge que recebeu.
   if (String(p.site || '')) return { ok: true };
+  var campos = camposDaFicha(p);
+  var cpf = campos.cpf;
 
+  var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
+  var existentes = linhas(s);
+  // O mesmo CPF duas vezes: recusa, em vez de trocar a ficha que ja esta la -
+  // senao qualquer um com o link e o CPF de alguem sobrescreveria a ficha
+  // dele. Corrigir e com o ADM.
+  if (existentes.some(function (l) { return soDigitos(l[7]) === cpf; })) {
+    throw new Error('Ja recebemos uma ficha com este CPF. Se precisa corrigir algo, fale com o ADM da sua divisao');
+  }
+  var diaDeHoje = agora().slice(0, 10);
+  if (existentes.filter(function (l) { return String(l[3] || '').slice(0, 10) === diaDeHoje; }).length >= ADMISSAO_POR_DIA) {
+    throw new Error('Muitas fichas hoje - tente de novo amanha ou fale com o ADM da sua divisao');
+  }
+  // Desde 25/11/2026 a ficha ja entra Em analise (o "Novo" saiu): a mesa
+  // ja comeca a lancar no sistema do clube assim que ela chega.
+  gravarLinhaComoTexto(s, s.getLastRow() + 1, [novoId(), divisao, SITUACAO_PRETENDENTE_ANALISE, agora(), ''].concat(campos.valores, [''], campos.saude));
+  return { ok: true };
+}
+
+// Confere e arruma os campos de uma ficha - a mesma regra pra quem envia
+// pelo link (receberFichaAdmissao) e pro ADM que corrige (editarPretendente,
+// 25/11/2026). Devolve { cpf (so digitos), valores (as colunas de "Nome
+// Colete" a "Quem Indicou"), saude (as 7 depois do ID Membro) }, ou lanca o
+// primeiro problema.
+function camposDaFicha(p) {
   var texto = function (chave, max, rotulo) {
     var v = linhaCurta(p[chave], max);
     if (rotulo && !v) throw new Error('Preencha: ' + rotulo);
@@ -2907,22 +2937,7 @@ function receberFichaAdmissao(p) {
       .concat(simNaoQual('convenio', 'Convenio', 80), simNaoQual('alergia', 'Alergia', 150), simNaoQual('condicao', 'Condicao de saude', 150));
   }
 
-  var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
-  var existentes = linhas(s);
-  // O mesmo CPF duas vezes: recusa, em vez de trocar a ficha que ja esta la -
-  // senao qualquer um com o link e o CPF de alguem sobrescreveria a ficha
-  // dele. Corrigir e com o ADM.
-  if (existentes.some(function (l) { return soDigitos(l[7]) === cpf; })) {
-    throw new Error('Ja recebemos uma ficha com este CPF. Se precisa corrigir algo, fale com o ADM da sua divisao');
-  }
-  var diaDeHoje = agora().slice(0, 10);
-  if (existentes.filter(function (l) { return String(l[3] || '').slice(0, 10) === diaDeHoje; }).length >= ADMISSAO_POR_DIA) {
-    throw new Error('Muitas fichas hoje - tente de novo amanha ou fale com o ADM da sua divisao');
-  }
-  // Desde 25/11/2026 a ficha ja entra Em analise (o "Novo" saiu): a mesa
-  // ja comeca a lancar no sistema do clube assim que ela chega.
-  gravarLinhaComoTexto(s, s.getLastRow() + 1, [novoId(), divisao, SITUACAO_PRETENDENTE_ANALISE, agora(), ''].concat(valores, [''], saude));
-  return { ok: true };
+  return { cpf: cpf, valores: valores, saude: saude };
 }
 
 // ---------- PRETENDENTES (o card do organizador) ----------
@@ -3054,6 +3069,27 @@ function saudeDaFicha(f) {
   if (f.condicao === 'Sim') partes.push('Condição: ' + f.condicaoQual);
   var condicoes = partes.length ? partes.join(' · ') : (f.alergia === 'Nao' && f.condicao === 'Nao' ? 'Nenhuma' : '');
   return { tipo: tipo, plano: plano, condicoes: linhaCurta(condicoes, 300) };
+}
+
+// ✏️ Editar (25/11/2026): o ADM corrige a ficha quando o pretendente avisa
+// que errou algo. Mesma conferencia de quem envia (camposDaFicha), com o PIN
+// da divisao do LINK. Ficam como estavam: o ID, a divisao, a situacao, o
+// "Enviado em" e o ID Membro. O CPF nao pode ser o de OUTRA ficha. Numa ficha
+// ja aprovada, muda so a ficha guardada (o Ficha de cadastro) - o cadastro e
+// a carteirinha do irmao se corrigem por la.
+function editarPretendente(p) {
+  var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.id || ''); });
+  if (!achado) throw new Error('Ficha nao encontrada - pode ter sido apagada');
+  var v = achado.valores;
+  if (!podeNaDivisao(String(v[1] || ''), String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  var campos = camposDaFicha(p);
+  var outra = linhas(s).some(function (l, i) { return i + 2 !== achado.indice && soDigitos(l[7]) === campos.cpf; });
+  if (outra) throw new Error('Ja existe outra ficha com este CPF');
+  gravarLinhaComoTexto(s, achado.indice, [v[0], v[1], v[2], String(v[3] || ''), agora()]
+    .concat(campos.valores, [String(v[COL_PRETENDENTE_MEMBRO] || '')], campos.saude));
+  var novo = acharLinha(s, function (l) { return String(l[0]) === String(v[0]); });
+  return { ok: true, pretendente: pretendenteDaLinha(novo.valores) };
 }
 
 // Desistiu: a ficha some inteira (CPF, RG, endereco...). A de quem ja foi

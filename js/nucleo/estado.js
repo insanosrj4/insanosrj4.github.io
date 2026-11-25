@@ -487,6 +487,9 @@ export let state = {
   // escolhida, quando a ficha veio pelo link do Regional). E a lista dos
   // aprovados, dobrada no fim.
   pretendenteConfirmar: null,
+  // O ✏️ Editar ficha (25/11/2026): { id, valores (o rascunho, datas em
+  // dd/mm/aaaa), erros (da conferencia) }, ou null.
+  pretendenteEditando: null,
   pretendentesAprovadosAbertos: false,
 
   movimentosDados: null,

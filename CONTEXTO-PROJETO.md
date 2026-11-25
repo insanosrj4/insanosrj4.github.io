@@ -1085,6 +1085,18 @@ quem quer entrar no clube. Em três etapas: **1)** o link e a gravação;
   Em análise e Aprovado (`SITUACOES_PRETENDENTE`, nos dois lados); o
   `pretendenteSituacao` ficou só pra um app antigo aberto num celular.
 - Busca as fichas ao entrar na seção (`carregarPretendentes`).
+- **✏️ Editar ficha** (25/11/2026): na ficha aberta, corrige o que o
+  pretendente avisou que errou. O formulário tem os mesmos campos e a mesma
+  conferência da ficha do link (`conferirFicha`); digitar não redesenha a
+  tela (`atualizarCampoPretendente`), e os botões de escolha redesenham, pra
+  aparecer ou sumir o "Qual?". No Code.gs, `editarPretendente` usa a mesma
+  conferência de quem envia (`camposDaFicha`, separada do
+  `receberFichaAdmissao`), com o PIN da divisão do link, e recusa o CPF de
+  outra ficha. O ID, a divisão, a situação, o "Enviado em" e o ID Membro ficam
+  como estavam. Numa ficha já aprovada, muda só a ficha guardada (o cadastro
+  e a carteirinha se corrigem em Membros). No Registro, "Pretendente: ficha
+  corrigida", só com o nome. **Precisa do Code.gs na versão
+  `2026-11-25-editar-ficha`.**
 
 **✅ Aprovado e ❌ Desistiu** (Etapa 3, 25/11/2026), na ficha aberta.
 Também na página da Mesa (abaixo). Os dois abrem uma confirmação na própria ficha,

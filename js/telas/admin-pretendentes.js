@@ -15,9 +15,10 @@ import { api } from '../nucleo/api.js';
 import { escoposNaOrdemOficial } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, escapeHtml, formatDataBR, hojeISO, imprimirTexto, mostrarAviso } from '../nucleo/util.js';
+import { copiarTexto, dataISOdeBR, escapeHtml, formatDataBR, hojeISO, imprimirTexto, mostrarAviso } from '../nucleo/util.js';
 import { recarregarEventos } from '../dados/carregar.js';
-import { ehAprovado, irmaosComMesmoNome, linkDaFicha, linkDaMesa, nomeDivisaoAdmissao, ordenarPretendentes,
+import { CAMPOS_FICHA, PARTES_FICHA, campoVisivel, conferirFicha, ehAprovado, fichaParaEnvio, irmaosComMesmoNome,
+  linkDaFicha, linkDaMesa, mascaraCep, mascaraCpf, mascaraTelefone, nomeDivisaoAdmissao, ordenarPretendentes,
   partesDoPretendente, situacaoDe, textoFichaAdmissao } from '../dominio/admissao.js';
 import { botaoGerarRelatorio } from '../ui/comuns.js';
 
@@ -206,8 +207,101 @@ function painelConfirmar(p, conf) {
     </div>`;
 }
 
+// ---------- ✏️ Editar (25/11/2026) ----------
+// O ADM corrige o que o pretendente avisou que errou. Os mesmos campos e a
+// mesma conferencia da ficha do link (dominio/admissao.js); a planilha confere
+// de novo (editarPretendente). Digitar NAO redesenha a tela - senao o teclado
+// do celular fecharia a cada letra: atualizarCampoPretendente so lembra o
+// valor (e poe a mascara). Os botoes de escolha redesenham, e e ai que
+// aparecem ou somem o "Em quantas vezes?" e os "Qual?".
+
+const ROTULO_OPCAO = { Nao: 'Não' };
+const MASCARAS = { cpf: mascaraCpf, cep: mascaraCep, telefone: mascaraTelefone };
+
+// A ficha gravada vira o rascunho: as datas em dd/mm/aaaa, como se digita.
+function rascunhoDe(p) {
+  const valores = {};
+  CAMPOS_FICHA.forEach(c => {
+    const v = String(p[c.chave] == null ? '' : p[c.chave]);
+    valores[c.chave] = c.tipo === 'data' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? formatDataBR(v) : v;
+  });
+  return valores;
+}
+
+// O rascunho como a conferencia espera: as datas em ISO (a que nao virou
+// data fica como foi escrita, pra conferencia acusar).
+function valoresDoRascunho(valores) {
+  const saida = { ...valores };
+  CAMPOS_FICHA.filter(c => c.tipo === 'data').forEach(c => {
+    const t = String(saida[c.chave] || '').trim();
+    saida[c.chave] = t ? (dataISOdeBR(t) || t) : '';
+  });
+  return saida;
+}
+
+function campoEditavel(campo, valores, erros) {
+  const v = valores[campo.chave] == null ? '' : String(valores[campo.chave]);
+  const erro = erros.find(e => e.chave === campo.chave);
+  const marcadoSem = campo.sem && v === campo.sem;
+  let entrada;
+  if (campo.tipo === 'escolha') {
+    entrada = `<div class="acao-escolha">${campo.opcoes.map(op => `
+      <button class="acao-escolha-opcao ${v === op ? 'ativo' : ''}" data-action="pretendente-editar-escolha" data-campo="${campo.chave}" data-value="${escapeHtml(op)}">${escapeHtml(ROTULO_OPCAO[op] || op)}</button>`).join('')}</div>`;
+  } else {
+    const tipo = campo.tipo === 'email' ? 'email' : campo.tipo === 'telefone' ? 'tel' : 'text';
+    const teclado = ['cpf', 'cep', 'data', 'numero'].includes(campo.tipo) ? ' inputmode="numeric"' : '';
+    const max = campo.tipo === 'cpf' ? 14 : campo.tipo === 'cep' ? 9 : campo.tipo === 'telefone' ? 15 : campo.tipo === 'data' ? 10 : campo.tipo === 'uf' ? 2 : (campo.max || 120);
+    entrada = `<input type="${tipo}"${teclado} maxlength="${max}" autocomplete="off" data-pretendente-campo="${campo.chave}"
+      ${campo.tipo === 'data' ? 'class="campo-data" placeholder="dd/mm/aaaa"' : ''} value="${marcadoSem ? '' : escapeHtml(v)}" ${marcadoSem ? `disabled placeholder="${escapeHtml(campo.sem)}"` : ''}>`;
+    if (campo.sem) {
+      entrada += `<button class="acao-escolha-opcao pret-editar-sem ${marcadoSem ? 'ativo' : ''}" data-action="pretendente-editar-sem" data-campo="${campo.chave}">${escapeHtml(campo.sem)}</button>`;
+    }
+  }
+  return `
+    <div class="field pret-editar-campo${erro ? ' com-erro' : ''}">
+      <label>${escapeHtml(campo.rotulo)}</label>
+      ${entrada}
+      ${erro ? `<div class="pret-editar-erro">${escapeHtml(erro.msg)}</div>` : ''}
+    </div>`;
+}
+
+function formularioEdicao(p) {
+  const ed = state.pretendenteEditando;
+  const salvando = state.pretendenteSalvando;
+  return `
+    <div class="card pret-editar no-print">
+      <div class="painel-titulo">✏️ Corrigir a ficha</div>
+      <div class="pret-explica">${ehAprovado(p)
+        ? 'Esta ficha já foi aprovada: aqui muda só a ficha guardada. O cadastro e a carteirinha do irmão se corrigem em Membros.'
+        : 'Corrija o que o pretendente avisou e toque em Salvar.'}</div>
+      ${ed.erros.length ? `<div class="alert" style="margin-bottom:10px;"><div class="alert-msg">${ed.erros.length === 1 ? 'Falta 1 coisa - está marcada' : `Faltam ${ed.erros.length} coisas - estão marcadas`} em vermelho.</div></div>` : ''}
+      ${PARTES_FICHA.map(parte => `
+        <div class="ficha-parte-titulo pret-editar-parte">${escapeHtml(parte.titulo)}</div>
+        ${parte.campos.filter(c => campoVisivel(c, ed.valores)).map(c => campoEditavel(c, ed.valores, ed.erros)).join('')}`).join('')}
+      <div class="row-gap" style="margin-top:12px;">
+        <button class="btn" style="flex:1;" data-action="pretendente-editar-salvar" data-id="${escapeHtml(p.id)}" ${salvando ? 'disabled' : ''}>${salvando ? 'Salvando…' : '💾 Salvar correção'}</button>
+        <button class="btn secondary" style="flex:1;" data-action="pretendente-editar-cancelar" ${salvando ? 'disabled' : ''}>Cancelar</button>
+      </div>
+    </div>`;
+}
+
+// O que se digita no formulario: so lembra (e poe a mascara), sem
+// redesenhar. Devolve true se o campo era daqui.
+export function atualizarCampoPretendente(el) {
+  const ed = state.pretendenteEditando;
+  const chave = el && el.dataset && el.dataset.pretendenteCampo;
+  if (!ed || !chave) return false;
+  const campo = CAMPOS_FICHA.find(c => c.chave === chave);
+  if (campo && MASCARAS[campo.tipo]) el.value = MASCARAS[campo.tipo](el.value);
+  if (campo && campo.tipo === 'uf') el.value = el.value.toUpperCase().replace(/[^A-Z]/g, '');
+  if (chave === 'parcelas') el.value = el.value.replace(/\D/g, '');
+  ed.valores[chave] = el.value;
+  return true;
+}
+
 function renderFicha(p) {
   const celular = soDigitos(p.celular);
+  const editando = state.pretendenteEditando && state.pretendenteEditando.id === p.id;
   return `
     <div class="back-link on-photo no-print" data-action="fechar-pretendente">‹ Voltar à lista</div>
     <div class="pc-fluxo">
@@ -225,13 +319,15 @@ function renderFicha(p) {
           <a class="btn secondary" style="flex:1;" href="tel:${celular}">📞 Ligar</a>
           <a class="btn secondary" style="flex:1;" href="https://wa.me/55${celular}" target="_blank" rel="noopener">💬 WhatsApp</a>
         </div>` : ''}
-      ${ehAprovado(p) ? caixaAprovado(p) : acoesDaFicha(p)}
-      ${botaoGerarRelatorio(`pretendente-${p.id}`, [
-        { acao: 'pretendente-whatsapp', rotulo: '📋 WhatsApp', id: p.id },
-        { acao: 'pretendente-pdf', rotulo: '📄 PDF', id: p.id },
-      ])}
+      ${editando ? '' : `
+        ${ehAprovado(p) ? caixaAprovado(p) : acoesDaFicha(p)}
+        <button class="btn secondary block no-print pret-editar-botao" data-action="pretendente-editar" data-id="${escapeHtml(p.id)}">✏️ Editar ficha</button>
+        ${botaoGerarRelatorio(`pretendente-${p.id}`, [
+          { acao: 'pretendente-whatsapp', rotulo: '📋 WhatsApp', id: p.id },
+          { acao: 'pretendente-pdf', rotulo: '📄 PDF', id: p.id },
+        ])}`}
     </div>
-    ${partesDoPretendente(p).map(parte => `
+    ${editando ? formularioEdicao(p) : partesDoPretendente(p).map(parte => `
       <div class="card pret-parte">
         <div class="ficha-parte-titulo">${escapeHtml(parte.titulo)}</div>
         ${parte.linhas.map(l => `
@@ -264,6 +360,7 @@ export const acoes = {
   'abrir-pretendente': async (id, target, action, e) => {
     state.pretendenteAberto = id;
     state.pretendenteConfirmar = null;
+    state.pretendenteEditando = null;
     state.gerarRelatorioAberto = null;
     render();
     window.scrollTo(0, 0);
@@ -271,6 +368,7 @@ export const acoes = {
   'fechar-pretendente': async (id, target, action, e) => {
     state.pretendenteAberto = null;
     state.pretendenteConfirmar = null;
+    state.pretendenteEditando = null;
     return render();
   },
   'pretendentes-aprovados': async (id, target, action, e) => {
@@ -327,6 +425,55 @@ export const acoes = {
       state.pretendenteAberto = null;
       state.pretendenteConfirmar = null;
       mostrarAviso(`❌ Ficha de ${p.nomeColete || 'pretendente'} apagada`);
+    } catch (err) {
+      // O balao do api() ja explica o erro.
+    }
+    state.pretendenteSalvando = false;
+    render();
+  },
+  // ✏️ Editar: abre o formulario com a ficha gravada.
+  'pretendente-editar': async (id, target, action, e) => {
+    const p = doId(id);
+    if (!p) return;
+    state.pretendenteConfirmar = null;
+    state.gerarRelatorioAberto = null;
+    state.pretendenteEditando = { id, valores: rascunhoDe(p), erros: [] };
+    return render();
+  },
+  'pretendente-editar-cancelar': async (id, target, action, e) => {
+    state.pretendenteEditando = null;
+    return render();
+  },
+  'pretendente-editar-escolha': async (id, target, action, e) => {
+    const ed = state.pretendenteEditando;
+    if (!ed) return;
+    ed.valores[target.dataset.campo] = target.dataset.value;
+    ed.erros = ed.erros.filter(x => x.chave !== target.dataset.campo);
+    return render();
+  },
+  // O "Não tem"/"Não tenho" do complemento e do telefone residencial: liga e desliga.
+  'pretendente-editar-sem': async (id, target, action, e) => {
+    const ed = state.pretendenteEditando;
+    const campo = CAMPOS_FICHA.find(c => c.chave === target.dataset.campo);
+    if (!ed || !campo) return;
+    ed.valores[campo.chave] = ed.valores[campo.chave] === campo.sem ? '' : campo.sem;
+    return render();
+  },
+  'pretendente-editar-salvar': async (id, target, action, e) => {
+    const ed = state.pretendenteEditando;
+    const p = doId(id);
+    if (!ed || !p || state.pretendenteSalvando) return;
+    const valores = valoresDoRascunho(ed.valores);
+    ed.erros = conferirFicha(valores, hojeISO());
+    if (ed.erros.length) return render();
+    state.pretendenteSalvando = true;
+    render();
+    try {
+      const r = await api('pretendenteEditar', { id, ...fichaParaEnvio(valores) });
+      state.pretendentesDados = lista().map(x => (x.id === id ? r.pretendente : x));
+      state.pretendenteEditando = null;
+      mostrarAviso('✏️ Ficha corrigida');
+      window.scrollTo(0, 0);
     } catch (err) {
       // O balao do api() ja explica o erro.
     }

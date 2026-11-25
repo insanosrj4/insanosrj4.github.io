@@ -55,6 +55,7 @@ const O_QUE = {
   pretendenteSituacao: 'mudar a situação da ficha',
   pretendenteAprovar: 'aprovar o pretendente',
   pretendenteRemover: 'apagar a ficha',
+  pretendenteEditar: 'salvar a correção da ficha',
 };
 
 export function ehGravacaoComAviso(action) { return Object.prototype.hasOwnProperty.call(O_QUE, action); }
