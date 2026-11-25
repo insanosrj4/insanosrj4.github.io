@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-25-admissao-aprovado';
+var VERSAO = '2026-11-25-mesa';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -504,6 +504,10 @@ function executar(action, p) {
   if (action === 'erroApp') return receberErroDoApp(p);
   if (action === 'admissaoEnviar') return comTrava(function () { return receberFichaAdmissao(p); });
   if (action === 'pretendentes') return lerPretendentes(String(p.divisao || ''), String(p.pin || ''));
+  // A pagina da Mesa (mesa.html, 25/11/2026) mostra nos cards quantas fichas
+  // esperam em cada divisao. Publico, como a lista de eventos: so numeros,
+  // nenhum nome nem dado da ficha.
+  if (action === 'pretendentesContagem') return contarPretendentes();
   if (action === 'pretendenteSituacao') return comTrava(function () { return mudarSituacaoPretendente(p); });
   if (action === 'pretendenteAprovar') return comTrava(function () { return aprovarPretendente(p); });
   if (action === 'pretendenteRemover') return comTrava(function () { return removerPretendente(p); });
@@ -781,12 +785,16 @@ function detalheDoRegistro(a, p, r, antes) {
     case 'funcaoConfigSalvar': x = [p.chave === 'caveira01' ? 'Caveira 01' : p.chave, antes.nome || (p.valor ? p.valor : 'ninguém')]; break;
     case 'pretendenteSituacao': x = ['→ ' + p.situacao]; break;
     case 'admissaoEnviar': x = [div(p.divisao)]; break;
-    case 'pretendenteAprovar': x = [antes.nome || p.id, r.ok ? 'entrou na ' + div(r.divisao) + ' como grau X' : '']; break;
-    case 'pretendenteRemover': x = [antes.nome || p.id, 'ficha apagada']; break;
+    case 'pretendenteAprovar': x = [antes.nome || p.id, r.ok ? 'entrou na ' + div(r.divisao) + ' como grau X' : '', pelaMesa(p)]; break;
+    case 'pretendenteRemover': x = [antes.nome || p.id, 'ficha apagada', pelaMesa(p)]; break;
     default: x = [p.id];
   }
   return x.filter(function (v) { return v !== undefined && v !== null && String(v).trim() !== ''; }).join(' · ');
 }
+
+// O que foi feito pela pagina da Mesa (mesa.html) leva a marca no Registro:
+// o PIN e o mesmo do organizador, e sem ela nao daria pra saber de onde veio.
+function pelaMesa(p) { return String(p.origem || '') === 'mesa' ? 'pela Mesa' : ''; }
 
 // Os erros que acontecem na TELA (um botao que quebra, uma tela que nao
 // desenha) - o app manda pelo sendBeacon. Publico (o erro pode acontecer
@@ -2798,7 +2806,6 @@ var ADMISSAO_UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 
 var ADMISSAO_POR_DIA = 40;
 // O tipo sanguineo da ficha e um dos da carteirinha (TIPOS_SANGUINEOS), sem
 // "Nao sei": o integrante tem de informar (decisao do clube, 25/11/2026).
-var SITUACAO_PRETENDENTE_NOVO = 'Novo';
 
 function soDigitos(v) { return String(v === undefined || v === null ? '' : v).replace(/\D/g, ''); }
 
@@ -2912,7 +2919,9 @@ function receberFichaAdmissao(p) {
   if (existentes.filter(function (l) { return String(l[3] || '').slice(0, 10) === diaDeHoje; }).length >= ADMISSAO_POR_DIA) {
     throw new Error('Muitas fichas hoje - tente de novo amanha ou fale com o ADM da sua divisao');
   }
-  gravarLinhaComoTexto(s, s.getLastRow() + 1, [novoId(), divisao, SITUACAO_PRETENDENTE_NOVO, agora(), ''].concat(valores, [''], saude));
+  // Desde 25/11/2026 a ficha ja entra Em analise (o "Novo" saiu): a mesa
+  // ja comeca a lancar no sistema do clube assim que ela chega.
+  gravarLinhaComoTexto(s, s.getLastRow() + 1, [novoId(), divisao, SITUACAO_PRETENDENTE_ANALISE, agora(), ''].concat(valores, [''], saude));
   return { ok: true };
 }
 
@@ -2932,7 +2941,10 @@ var ADMISSAO_CHAVES = ['nomeColete', 'nomeCompleto', 'cpf', 'rg', 'nascimento', 
 // ficha. Ele nao se marca a mao - so pelo aprovarPretendente.
 var SITUACAO_PRETENDENTE_ANALISE = 'Em análise';
 var SITUACAO_PRETENDENTE_APROVADO = 'Aprovado';
-var SITUACOES_PRETENDENTE = ['Novo', 'Em análise', 'Aprovado'];
+// Desde 25/11/2026 sao so duas: a ficha ja entra Em analise. O 'Novo' das
+// fichas antigas e lido como Em analise (pretendenteDaLinha), e o
+// pretendenteSituacao fica so pra um app antigo aberto num celular.
+var SITUACOES_PRETENDENTE = ['Em análise', 'Aprovado'];
 var SITUACOES_PRETENDENTE_MANUAIS = ['Novo', 'Em análise'];
 // A coluna 'ID Membro' (a ultima de CAB_PRETENDENTES), contando do zero.
 var COL_PRETENDENTE_MEMBRO = 34;
@@ -2941,7 +2953,9 @@ var COL_PRETENDENTE_MEMBRO = 34;
 var ADMISSAO_CHAVES_SAUDE = ['tipoSanguineo', 'convenio', 'convenioQual', 'alergia', 'alergiaQual', 'condicao', 'condicaoQual'];
 
 function pretendenteDaLinha(l) {
-  var p = { id: String(l[0]), divisao: String(l[1] || ''), situacao: String(l[2] || SITUACAO_PRETENDENTE_NOVO),
+  // O "Novo" das fichas de antes de 25/11/2026 e lido como Em analise.
+  var situacao = String(l[2] || '') === SITUACAO_PRETENDENTE_APROVADO ? SITUACAO_PRETENDENTE_APROVADO : SITUACAO_PRETENDENTE_ANALISE;
+  var p = { id: String(l[0]), divisao: String(l[1] || ''), situacao: situacao,
     enviadoEm: String(l[3] || ''), atualizadoEm: String(l[4] || ''), membroId: String(l[COL_PRETENDENTE_MEMBRO] || '') };
   ADMISSAO_CHAVES.forEach(function (chave, i) {
     var v = l[5 + i];
@@ -2959,6 +2973,19 @@ function lerPretendentes(divisao, pin) {
   var s = planilha().getSheetByName(ABA_PRETENDENTES);
   var lista = s ? linhas(s).filter(function (l) { return l[0] && (divisao === 'regional' || String(l[1]) === divisao); }).map(pretendenteDaLinha) : [];
   return { ok: true, pretendentes: lista };
+}
+
+// Quantas fichas esperam (Em analise) em cada divisao - os cards da Mesa.
+// So numeros: { barra: 2, oeste: 0, ... }.
+function contarPretendentes() {
+  var contagem = {};
+  ESCOPOS_VALIDOS.forEach(function (chave) { contagem[chave] = 0; });
+  var s = planilha().getSheetByName(ABA_PRETENDENTES);
+  if (s) linhas(s).forEach(function (l) {
+    var div = String(l[1] || '');
+    if (l[0] && contagem.hasOwnProperty(div) && String(l[2]) !== SITUACAO_PRETENDENTE_APROVADO) contagem[div]++;
+  });
+  return { ok: true, contagem: contagem };
 }
 
 // Muda a situacao (Novo <-> Em analise). Vale a divisao da LINHA gravada:

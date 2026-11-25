@@ -1961,16 +1961,23 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
 
   // O card Pretendentes: a ordem da lista, o link e o texto da ficha.
   const pr = (id, situacao, enviadoEm) => ({ id, situacao, enviadoEm });
-  confere('lista: os Novos primeiro, o mais recente em cima',
-    A.ordenarPretendentes([pr('a', 'Em análise', '15/11/2026 09:00'), pr('b', 'Novo', '01/11/2026 10:00'), pr('c', 'Novo', '02/11/2026 08:00')]).map(x => x.id),
-    ['c', 'b', 'a']);
+  confere('lista: o mais recente em cima',
+    A.ordenarPretendentes([pr('a', 'Em análise', '15/11/2026 09:00'), pr('b', 'Em análise', '01/11/2026 10:00'), pr('c', 'Em análise', '02/11/2026 08:00')]).map(x => x.id),
+    ['a', 'c', 'b']);
+  // A pagina da Mesa (25/11/2026): so as que esperam; o Regional ve as 7.
+  const fm = [{ ...pr('a', 'Em análise', '15/11/2026 09:00'), divisao: 'barra' }, { ...pr('b', 'Aprovado', '16/11/2026 09:00'), divisao: 'barra' },
+    { ...pr('c', 'Em análise', '17/11/2026 09:00'), divisao: 'oeste' }];
+  confere('mesa: a divisão vê só as dela que esperam, sem os aprovados', A.pretendentesDaMesa(fm, 'barra').map(x => x.id), ['a']);
+  confere('mesa: o Regional vê as de todas, sem os aprovados', A.pretendentesDaMesa(fm, 'regional').map(x => x.id), ['c', 'a']);
+  confere('mesa: o link', A.linkDaMesa('https://x.github.io/Presenca-RJ4/index.html'), 'https://x.github.io/Presenca-RJ4/mesa.html');
+  confere('o "Novo" saiu: situação desconhecida aparece como Em análise', A.situacaoDe({ situacao: 'Novo' }).rotulo, 'Em análise');
   confere('o link de cada divisão', [A.linkDaFicha('https://x.github.io/Presenca-RJ4/index.html', 'curicica'), A.linkDaFicha('', 'barra')],
     ['https://x.github.io/Presenca-RJ4/ficha.html?divisao=curicica', 'ficha.html?divisao=barra']);
   confere('o nome da divisão', [A.nomeDivisaoAdmissao('gardenia'), A.nomeDivisaoAdmissao('regional')], ['Divisão Gardênia', 'Regional RJ4']);
-  const texto = A.textoFichaAdmissao({ ...completa, divisao: 'curicica', situacao: 'Novo', enviadoEm: '14/11/2026 10:00',
+  const texto = A.textoFichaAdmissao({ ...completa, divisao: 'curicica', situacao: 'Em análise', enviadoEm: '14/11/2026 10:00',
     pagamento: 'Parcelado', parcelas: '4', carro: 'Nao' }).split('\n');
   confere('o texto da ficha: o cabeçalho', texto.slice(0, 4),
-    ['📝 *FICHA DE ADMISSÃO*', '*Lobo* · João da Silva', 'Divisão Curicica · enviada em 14/11/2026 10:00', '🆕 Novo']);
+    ['📝 *FICHA DE ADMISSÃO*', '*Lobo* · João da Silva', 'Divisão Curicica · enviada em 14/11/2026 10:00', '🔎 Em análise']);
   confere('o texto da ficha: datas, Não, colete e parcelas como se lê',
     ['Data de nascimento: 21/05/1990', 'Possui carro?: Não', 'Material do colete: Couro (R$ 900,00)', 'Em quantas vezes?: 4x (com juros da operadora)'].every(l => texto.includes(l)), true);
   confere('o texto da ficha: quem indicou só aparece no Indicado', texto.some(l => l.startsWith('Quem te indicou')), false);

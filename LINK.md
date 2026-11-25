@@ -18,6 +18,18 @@ Curicica, Taquara, Gardênia, Regional) tem o próprio PIN, guardado nas
 Propriedades do Script do Apps Script — não fica mais no código. O PIN do
 Regional funciona como chave-mestra, abrindo qualquer divisão.
 
+## Ficha de admissão e Mesa
+
+Links fora do app, na mesma pasta do site:
+
+- **Ficha do pretendente**, um por divisão:
+  `https://vini04rock.github.io/Presenca-RJ4/ficha.html?divisao=barra`
+  (troque `barra` pela chave da divisão; o app mostra todos em ADM ›
+  📝 Pretendentes).
+- **Mesa**, um só pra todas as divisões:
+  `https://vini04rock.github.io/Presenca-RJ4/mesa.html`. Cada card abre com
+  o PIN da divisão (o mesmo do Modo organizador; o do Regional abre todas).
+
 ## Repositório
 
     https://github.com/vini04rock/Presenca-RJ4

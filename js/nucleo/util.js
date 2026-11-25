@@ -232,7 +232,9 @@ export async function copiarTexto(texto) {
   return ok;
 }
 
-async function copiarSemAviso(texto) {
+// Sem o aviso de "colar no WhatsApp": a pagina da Mesa copia um dado por vez e
+// diz qual foi.
+export async function copiarSemAviso(texto) {
   try {
     await navigator.clipboard.writeText(texto);
     return true;

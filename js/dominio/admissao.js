@@ -227,23 +227,24 @@ export function fichaParaEnvio(valores) {
 
 // ---------- o card Pretendentes (o organizador le as fichas) ----------
 
-// O caminho do pretendente (14/11/2026). Novo: acabou de enviar. Em analise:
-// esperando entrar no sistema do clube. Aprovado (25/11/2026): virou irmao -
-// cadastrado em Membros, e a ficha fica guardada na carteirinha dele
-// (📝 Ficha de cadastro). O Desistiu nao e situacao: apaga a ficha.
-export const SITUACAO_NOVO = 'Novo';
+// O caminho do pretendente. Em analise: a ficha chegou e a mesa lanca os
+// dados no sistema do clube - desde 25/11/2026 toda ficha ja entra assim (o
+// "Novo" saiu; o das fichas antigas a planilha devolve como Em analise).
+// Aprovado (25/11/2026): virou irmao - cadastrado em Membros, e a ficha fica
+// guardada na carteirinha dele (📝 Ficha de cadastro). O Desistiu nao e
+// situacao: apaga a ficha.
 export const SITUACAO_ANALISE = 'Em análise';
 export const SITUACAO_APROVADO = 'Aprovado';
 export const SITUACOES_PRETENDENTE = {
-  [SITUACAO_NOVO]: { emoji: '🆕', rotulo: 'Novo' },
   [SITUACAO_ANALISE]: { emoji: '🔎', rotulo: 'Em análise' },
   [SITUACAO_APROVADO]: { emoji: '✅', rotulo: 'Aprovado' },
 };
+export const situacaoDe = (p) => SITUACOES_PRETENDENTE[p && p.situacao] || SITUACOES_PRETENDENTE[SITUACAO_ANALISE];
 export const ehAprovado = (p) => !!p && p.situacao === SITUACAO_APROVADO;
 
 // O nome no colete ja existe no clube? Compara sem acento, maiuscula nem
 // espaco sobrando ("Lobo" = "LOBO "). E so aviso - pode ser outra pessoa.
-const nomeComparavel = (n) => String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+const nomeComparavel = (n) => String(n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
 export function irmaosComMesmoNome(roster, nome) {
   const alvo = nomeComparavel(nome);
   return alvo ? (roster || []).filter(m => nomeComparavel(m.nome) === alvo) : [];
@@ -262,12 +263,22 @@ export function linkDaFicha(enderecoDoApp, chave) {
   try { return new URL(caminho, enderecoDoApp).href; } catch (e) { return caminho; }
 }
 
-// Os Novos primeiro (sao os que pedem acao), depois Em analise e os
-// Aprovados no fim; dentro de cada situacao, o mais recente em cima.
-// "Enviado em" vem como dd/mm/aaaa hh:mm.
+// O link da pagina da Mesa (mesa.html, 25/11/2026): um so pra todo mundo.
+export function linkDaMesa(enderecoDoApp) {
+  try { return new URL('mesa.html', enderecoDoApp).href; } catch (e) { return 'mesa.html'; }
+}
+
+// As fichas que a mesa de uma divisao ve: so as que esperam (os aprovados
+// ja estao no app, na carteirinha). O Regional ve as de todas as divisoes.
+export function pretendentesDaMesa(lista, chave) {
+  return ordenarPretendentes((lista || []).filter(p => !ehAprovado(p) && (chave === 'regional' || p.divisao === chave)));
+}
+
+// Em analise primeiro (sao os que pedem acao) e os Aprovados no fim; dentro
+// de cada situacao, o mais recente em cima. "Enviado em" vem como
+// dd/mm/aaaa hh:mm.
 const instante = (t) => { const m = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/.exec(String(t || '')); return m ? `${m[3]}${m[2]}${m[1]}${m[4]}${m[5]}` : ''; };
-const ORDEM_SITUACAO = { [SITUACAO_NOVO]: 0, [SITUACAO_ANALISE]: 1, [SITUACAO_APROVADO]: 2 };
-const posicao = (p) => (p.situacao in ORDEM_SITUACAO ? ORDEM_SITUACAO[p.situacao] : 0);
+const posicao = (p) => (ehAprovado(p) ? 1 : 0);
 export function ordenarPretendentes(lista) {
   return [...lista].sort((a, b) => posicao(a) - posicao(b)
     || instante(b.enviadoEm).localeCompare(instante(a.enviadoEm)));
@@ -297,7 +308,7 @@ export function partesDoPretendente(p) {
 // A ficha inteira em texto, pro WhatsApp e pro PDF (o mesmo texto nos dois).
 // E o que se usa pra passar os dados pro sistema do clube.
 export function textoFichaAdmissao(p) {
-  const s = SITUACOES_PRETENDENTE[p.situacao] || SITUACOES_PRETENDENTE[SITUACAO_NOVO];
+  const s = situacaoDe(p);
   const linhas = [
     '📝 *FICHA DE ADMISSÃO*',
     `*${p.nomeColete || ''}*${p.nomeCompleto ? ` · ${p.nomeCompleto}` : ''}`,

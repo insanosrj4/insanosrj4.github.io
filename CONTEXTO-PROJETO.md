@@ -1036,7 +1036,7 @@ quem quer entrar no clube. Em três etapas: **1)** o link e a gravação;
   RJ4") aparecem no fim da ficha, antes do Enviar, e de novo depois de
   enviar (`htmlObservacoes`).
 - Na planilha: a aba `Pretendentes`, uma linha por ficha, com a divisão do
-  link e a situação `Novo`. É o dado mais sensível da planilha (CPF, RG,
+  link e a situação `Em análise` (até 25/11/2026 era `Novo`). É o dado mais sensível da planilha (CPF, RG,
   endereço): fica fora de `Membros`, e a leitura (Etapa 2) vai pedir PIN.
   **Precisa do Code.gs na versão `2026-11-14-ficha-admissao`.**
 
@@ -1045,22 +1045,22 @@ quem quer entrar no clube. Em três etapas: **1)** o link e a gravação;
 
 - **🔗 Link da ficha** no topo, com o 📋 Copiar: na divisão, o dela; no
   Regional, os 7 (o endereço sai do próprio app, `linkDaFicha`).
-- **A lista**: os 🆕 Novos primeiro, o mais recente em cima
+- **A lista**: o mais recente em cima, os aprovados dobrados no fim
   (`ordenarPretendentes`). No Regional, um bloco por divisão na ordem
   oficial, com "— nenhuma ficha" nas vazias.
 - **Tocar abre a ficha** inteira, nas 8 partes, com 📞 Ligar e 💬 WhatsApp
-  pro celular dele, o **🔎 Marcar Em análise** (quando começa a lançar no
-  sistema do clube; dá pra voltar pra Novo) e o 📊 Gerar relatório com
+  pro celular dele e o 📊 Gerar relatório com
   📋 WhatsApp e 📄 PDF: o mesmo texto (`textoFichaAdmissao`), pra passar os
   dados pro sistema do clube.
 - **Ler e mudar pedem PIN** (`pretendentes` e `pretendenteSituacao` em
   `ACOES_PROTEGIDAS`), conferido contra a divisão do link: a Barra não lê nem
-  mexe na ficha da Curicica, e o Regional vê todas. A situação só vai de Novo
-  pra Em análise e de volta (`SITUACOES_PRETENDENTE`, nos dois lados).
+  mexe na ficha da Curicica, e o Regional vê todas. As situações são
+  Em análise e Aprovado (`SITUACOES_PRETENDENTE`, nos dois lados); o
+  `pretendenteSituacao` ficou só pra um app antigo aberto num celular.
 - Busca as fichas ao entrar na seção (`carregarPretendentes`).
 
-**✅ Aprovado e ❌ Desistiu** (Etapa 3, 25/11/2026), na ficha aberta, em
-Novo **e** em Em análise. Os dois abrem uma confirmação na própria ficha,
+**✅ Aprovado e ❌ Desistiu** (Etapa 3, 25/11/2026), na ficha aberta.
+Também na página da Mesa (abaixo). Os dois abrem uma confirmação na própria ficha,
 dizendo o que vai acontecer.
 
 - **✅ Aprovado** (`aprovarPretendente`, no `Code.gs`, numa ida só): o irmão
@@ -1076,8 +1076,8 @@ dizendo o que vai acontecer.
 - **A ficha não é apagada** (decisão do clube, 25/11/2026: o sistema oficial
   usa esses dados). Vira `Aprovado`, com o ID do irmão na coluna
   **ID Membro** (a última de `Pretendentes`, acrescentada sozinha), e fica
-  dobrada no fim da lista ("✅ N aprovados ▸"). Não volta pra Novo à mão nem
-  sai pelo Desistiu.
+  dobrada no fim da lista ("✅ N aprovados ▸"). Não volta pra Em análise à mão
+  nem sai pelo Desistiu.
 - **📝 Ficha de cadastro**, na carteirinha do irmão (Membros › Carteirinhas):
   um botão que busca e mostra a ficha inteira, com 📋 WhatsApp e 📄 PDF
   próprios. Fica fora da Imagem, do PDF e do WhatsApp da carteirinha. Lê
@@ -1106,6 +1106,41 @@ dizendo o que vai acontecer.
   Não). Ficha de antes da parte 6 deixa esses campos em branco.
 - **Precisa do Code.gs na versão `2026-11-25-admissao-aprovado`, publicado
   antes do app.**
+
+## 🗂️ A página da Mesa (os pretendentes fora do app)
+
+Criada em 25/11/2026, a pedido do Social Regional: um link pros integrantes
+de mesa de cada divisão verem as fichas de admissão e lançarem os dados no
+sistema oficial do M.C., **sem entrar no app**. `mesa.html` + `js/mesa.js`
+(estado, toques e idas à planilha), com o desenho em `js/telas/mesa.js`
+(`htmlMesa`, que o `telas.mjs` desenha). Irmã da `ficha.html`: sem menu,
+calendário nem rank.
+
+- **Um link só, aberto:** abre com os 7 cards na ordem oficial, cada um com
+  quantas fichas esperam (`pretendentesContagem`, pública: só números).
+- **Tocar num card pede o PIN daquela divisão, o mesmo do Modo organizador**
+  (decisão do Social Regional, depois de ver as alternativas: página sem
+  senha, código no link ou senha só da mesa). O do Regional abre qualquer
+  card. Quem sabe o PIN também entra no Modo organizador — é o mesmo. O PIN
+  fica só na memória da página: "Sair" e recarregar pedem de novo.
+- **A lista:** só as fichas 🔎 Em análise (`pretendentesDaMesa`); os
+  aprovados não aparecem (ficam na carteirinha, no app). O card do Regional
+  mostra as das 7, em blocos. Cada linha tem o ✅ Aprovar ao lado, que abre a
+  ficha já com a confirmação.
+- **A ficha:** os dados, **cada campo com um 📋 que copia só ele** (data em
+  dd/mm/aaaa, "Não" com acento), 📋 Copiar ficha inteira e 📄 PDF, mais o
+  **✅ Aprovar** e o **❌ Desistiu**, com a mesma confirmação do app
+  (divisão escolhida na ficha do link do Regional; aviso de nome repetido,
+  com o cadastro público da ação `dados`).
+- **Usa as mesmas ações do card 📝 Pretendentes** (`pretendentes`,
+  `pretendenteAprovar`, `pretendenteRemover`), com o PIN conferido contra a
+  divisão da ficha no Code.gs. Vão com `origem: 'mesa'`, e o 📜 Registro
+  escreve "pela Mesa" (`pelaMesa`).
+- **Junto, o "🆕 Novo" saiu:** toda ficha já entra 🔎 Em análise
+  (`receberFichaAdmissao`); a antiga com "Novo" é lida como Em análise
+  (`pretendenteDaLinha`). No app, o botão "Marcar Em análise" saiu, e o card
+  📝 Pretendentes ganhou o **🗂️ Link da Mesa**, com o 📋 Copiar.
+- **Precisa do Code.gs na versão `2026-11-25-mesa`.**
 
 ## Ações Sociais (o planejador de cada divisão)
 

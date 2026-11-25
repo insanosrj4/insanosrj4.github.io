@@ -1806,7 +1806,7 @@ log('=== ficha de admissão: o link do pretendente grava sem PIN, e confere tudo
 
   confere('enviar sem PIN passa', tenta(ficha()).ok, true);
   const l = linhasP()[0];
-  confere('uma linha, na divisão do link, como Novo', [linhasP().length, l[1], l[2]], [1, 'curicica', 'Novo']);
+  confere('uma linha, na divisão do link, já Em análise', [linhasP().length, l[1], l[2]], [1, 'curicica', 'Em análise']);
   confere('CPF, CEP, UF e telefones gravados no formato certo', [l[7], l[13], l[19], l[20], l[25]],
     ['529.982.247-25', '22790-000', 'RJ', '(21) 99999-8888', '(21) 98888-7777']);
   confere('à vista: as parcelas não valem; quem indicou só no Indicado', [l[30], l[33]], ['', '']);
@@ -1871,7 +1871,7 @@ log('=== pretendentes: ler e mudar a situação, só com o PIN da divisão do li
   const daCuricica = tenta('pretendentes', cur).pretendentes;
   confere('a Curicica lê só as do link dela', daCuricica.map(x => x.nomeColete), ['Lobo']);
   confere('a ficha volta com os campos da ficha', [daCuricica[0].cpf, daCuricica[0].nascimento, daCuricica[0].colete, daCuricica[0].situacao],
-    ['529.982.247-25', '1990-05-21', 'G3', 'Novo']);
+    ['529.982.247-25', '1990-05-21', 'G3', 'Em análise']);
   confere('a Curicica NÃO lê as da Barra', tenta('pretendentes', { ...cur, divisao: 'barra' }).ok, false);
   confere('o Regional lê todas', tenta('pretendentes', reg).pretendentes.map(x => x.nomeColete), ['Lobo', 'Urso']);
 
@@ -1882,7 +1882,14 @@ log('=== pretendentes: ler e mudar a situação, só com o PIN da divisão do li
   const urso = tenta('pretendentes', reg).pretendentes[1];
   confere('fica gravado, com a hora, e o resto da ficha não muda', [urso.situacao, !!urso.atualizadoEm, urso.cpf, urso.nomeColete],
     ['Em análise', true, '111.444.777-35', 'Urso']);
-  confere('e volta pra Novo', [tenta('pretendenteSituacao', { ...reg, id: idUrso, situacao: 'Novo' }).ok, tenta('pretendentes', reg).pretendentes[1].situacao], [true, 'Novo']);
+  // O "Novo" saiu em 25/11/2026: uma ficha antiga (ou um app velho que ainda
+  // marca Novo) e lida como Em analise.
+  confere('o "Novo" antigo é lido como Em análise', [tenta('pretendenteSituacao', { ...reg, id: idUrso, situacao: 'Novo' }).ok, tenta('pretendentes', reg).pretendentes[1].situacao], [true, 'Em análise']);
+
+  // A contagem dos cards da Mesa: publica, so numeros.
+  const cont = tenta('pretendentesContagem', {});
+  confere('a contagem da Mesa é pública e só tem números', [cont.ok, cont.contagem.curicica, cont.contagem.barra, cont.contagem.oeste, JSON.stringify(cont).includes('Lobo')],
+    [true, 1, 1, 0, false]);
   confere('ficha que não existe é avisada', tenta('pretendenteSituacao', { ...reg, id: 'zz', situacao: 'Novo' }).ok, false);
 }
 
@@ -1912,7 +1919,7 @@ log('=== pretendentes: ✅ Aprovado cadastra o irmão, ❌ Desistiu apaga a fich
   confere('aprovar sem PIN é recusado', tenta('pretendenteAprovar', { id: idDe('Lobo') }).ok, false);
   confere('a Barra NÃO aprova a ficha da Curicica', tenta('pretendenteAprovar', { ...bar, id: idDe('Lobo') }).ok, false);
   confere('nada foi cadastrado nas recusas', membros().length, 0);
-  const r = tenta('pretendenteAprovar', { ...cur, id: idDe('Lobo') });
+  const r = tenta('pretendenteAprovar', { ...cur, id: idDe('Lobo'), origem: 'mesa' });
   confere('a Curicica aprova (direto do Novo)', [r.ok, r.divisao], [true, 'curicica']);
   const m = membros()[0];
   const hoje = contexto.agora().slice(0, 10).split('/').reverse().join('-');
@@ -1929,6 +1936,7 @@ log('=== pretendentes: ✅ Aprovado cadastra o irmão, ❌ Desistiu apaga a fich
   confere('a ficha NÃO é apagada: vira Aprovado, com o ID do irmão, e o CPF fica', [lobo.situacao, lobo.membroId, lobo.cpf],
     ['Aprovado', r.membroId, '529.982.247-25']);
   confere('aprovar de novo é recusado', tenta('pretendenteAprovar', { ...cur, id: lobo.id }).ok, false);
+  confere('o aprovado sai da contagem da Mesa', tenta('pretendentesContagem', {}).contagem.curicica, 1);
   confere('aprovado não volta pra Novo à mão', tenta('pretendenteSituacao', { ...cur, id: lobo.id, situacao: 'Novo' }).ok, false);
   confere('aprovado não sai pelo Desistiu', tenta('pretendenteRemover', { ...cur, id: lobo.id }).ok, false);
 
@@ -1975,7 +1983,7 @@ log('=== pretendentes: ✅ Aprovado cadastra o irmão, ❌ Desistiu apaga a fich
   const anotados = (p.abas.Registro ? p.abas.Registro.dados.slice(1) : [])
     .filter(l => /Pretendente (aprovado|desistiu)/.test(limpo(l[1])) && limpo(l[4]) === 'OK').map(l => limpo(l[3]));
   confere('o Registro anota aprovado e desistiu', anotados,
-    ['Lobo · entrou na Curicica - RJ4 como grau X', 'Urso · entrou na Barra - RJ4 como grau X', 'Gato · ficha apagada']);
+    ['Lobo · entrou na Curicica - RJ4 como grau X · pela Mesa', 'Urso · entrou na Barra - RJ4 como grau X', 'Gato · ficha apagada']);
   confere('sem CPF no Registro', (p.abas.Registro ? p.abas.Registro.dados : []).some(l => l.join(' ').includes('529.982')), false);
 }
 

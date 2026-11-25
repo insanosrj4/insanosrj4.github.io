@@ -83,7 +83,7 @@ function listar(dir, base = '') {
   return out;
 }
 log('=== 1. carregar cada modulo ===');
-const ENTRADAS = ['app.js', 'ficha.js'];
+const ENTRADAS = ['app.js', 'ficha.js', 'mesa.js'];
 let falhasCarga = 0;
 for (const m of listar(JS).sort()) {
   // As duas entradas desenham a pagina ao carregar: o app.js dispara a
@@ -417,6 +417,32 @@ add('organizador / área ADM (oeste)', { isAdmin:true, adminEscopo:'oeste', orga
   add('pretendentes / confirmar aprovado (cadastrando)', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'bb', pretendenteConfirmar:{ tipo:'aprovar', destino:null }, pretendenteSalvando:true }, T.renderAdmin);
   add('pretendentes / confirmar desistiu', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'a', pretendenteConfirmar:{ tipo:'desistiu', destino:null } }, T.renderAdmin);
   add('pretendentes / ficha aprovada', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'dddd' }, T.renderAdmin);
+  // A pagina da Mesa (mesa.html, 25/11/2026): o desenho mora em telas/mesa.js
+  // e recebe o estado da propria pagina, nao o do app.
+  const M = await import(url('telas/mesa.js'));
+  const mesa = (estado) => (app) => { app.innerHTML = M.htmlMesa({ tela:'cards', escopo:null, contagem:null, contagemErro:false,
+    pinVerificando:false, pinErro:null, dados:null, carregando:false, erro:null, aberto:null, confirmar:null, salvando:false,
+    roster:null, ...estado }); };
+  const daMesa = comAprovado.map(f => f.situacao === 'Aprovado' ? f : { ...f, situacao:'Em análise' });
+  const cont = { regional:1, oeste:0, recreio:0, barra:1, curicica:2, taquara:0, gardenia:0 };
+  add('mesa / cards (contando)', {}, mesa({}));
+  add('mesa / cards (com a contagem)', {}, mesa({ contagem: cont }));
+  add('mesa / cards (contagem falhou)', {}, mesa({ contagemErro:true }));
+  add('mesa / PIN', {}, mesa({ tela:'pin', escopo:'curicica' }));
+  add('mesa / PIN errado', {}, mesa({ tela:'pin', escopo:'curicica', pinErro:'PIN incorreto.' }));
+  add('mesa / PIN verificando', {}, mesa({ tela:'pin', escopo:'barra', pinVerificando:true }));
+  add('mesa / lista buscando', {}, mesa({ tela:'lista', escopo:'curicica', carregando:true }));
+  add('mesa / lista com erro', {}, mesa({ tela:'lista', escopo:'curicica', erro:'Falha de conexao' }));
+  add('mesa / lista da divisão (sem os aprovados)', {}, mesa({ tela:'lista', escopo:'curicica', dados: daMesa.filter(f => f.divisao === 'curicica') }));
+  add('mesa / lista vazia', {}, mesa({ tela:'lista', escopo:'oeste', dados: [] }));
+  add('mesa / lista do Regional (as 7)', {}, mesa({ tela:'lista', escopo:'regional', dados: daMesa }));
+  add('mesa / ficha', {}, mesa({ tela:'ficha', escopo:'curicica', dados: daMesa, aberto:'a' }));
+  add('mesa / ficha: confirmar aprovar', {}, mesa({ tela:'ficha', escopo:'curicica', dados: daMesa, aberto:'a',
+    confirmar:{ tipo:'aprovar', destino:null }, roster:[{ nome:'Lobo a', divisao:'Barra - RJ4' }] }));
+  add('mesa / ficha: aprovar do link do Regional (Barra)', {}, mesa({ tela:'ficha', escopo:'regional', dados: daMesa, aberto:'eeeee',
+    confirmar:{ tipo:'aprovar', destino:'barra' } }));
+  add('mesa / ficha: confirmar desistiu', {}, mesa({ tela:'ficha', escopo:'curicica', dados: daMesa, aberto:'a',
+    confirmar:{ tipo:'desistiu', destino:null }, salvando:true }));
 }
 add('organizador / área Operacional (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'operacional' }, T.renderMenuOrganizador);
 for (const aba of ['eventos','membros','encerrados','presencas','insights','insights-rodadas','insights-relatorio']) {

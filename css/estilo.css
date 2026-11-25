@@ -3252,6 +3252,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 /* A ficha de cadastro dentro da carteirinha. */
 .cart-cadastro { margin-top: 12px; }
 .cart-cadastro .pret-parte { margin-top: 10px; }
+/* A pagina da Mesa (mesa.html, 25/11/2026). */
+.mesa-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mesa-topo .back-link { margin-bottom: 0; }
+.mesa-sair { padding: 6px 12px; font-size: 13px; }
+.mesa-erro { color: #C9A29C; font-size: 13px; margin-bottom: 10px; }
+.mesa-aviso { text-align: center; }
+.mesa-linha { gap: 10px; align-items: center; }
+.mesa-linha-selo { margin-top: 6px; }
+.mesa-aprovar-linha { flex-shrink: 0; padding: 8px 12px; font-size: 13px; }
+.mesa-dado { align-items: center; }
+.mesa-copiar { flex-shrink: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 9px; font-size: 15px; line-height: 1; cursor: pointer; }
+.mesa-copiar:active { background-color: rgba(255, 255, 255, 0.16); }
 .pret-bloco { margin-bottom: 14px; }
 .pret-bloco-titulo { font-family: 'Rye', serif; font-size: 15px; color: var(--white-strong); margin: 4px 0 8px; }
 .pret-bloco-titulo span { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; color: var(--text-muted); }

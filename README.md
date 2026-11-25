@@ -37,6 +37,7 @@ Sirva a pasta e acesse `http://localhost:8765`:
     .
     ├── index.html            só o esqueleto: <head>, #app e o <script>
     ├── ficha.html            a Ficha de Admissão (link do pretendente)
+    ├── mesa.html             a Mesa: os pretendentes pra mesa de cada divisão
     ├── css/estilo.css        todo o visual
     ├── img/                  as artes dos cards, a logo e o fundo
     ├── js/

@@ -2,9 +2,10 @@
 // de admissao que chegaram pelo link de cada divisao (ficha.html). Cada
 // divisao ve as do link dela; o Regional ve todas, em blocos por divisao.
 //
-// Aqui ficam o link pra mandar, a lista e a ficha de cada um, com o
-// 🔎 Em analise (esperando entrar no sistema do clube) e o WhatsApp/PDF,
-// que levam a ficha inteira pra passar pro sistema. Desde 25/11/2026, o
+// Aqui ficam o link pra mandar (e o da pagina da Mesa, mesa.html), a lista
+// e a ficha de cada um, com o WhatsApp/PDF, que levam a ficha inteira pra
+// passar pro sistema. Toda ficha ja chega 🔎 Em analise (o "Novo" e o botao
+// de marcar sairam em 25/11/2026). Desde 25/11/2026, o
 // ✅ Aprovado (cadastra o irmao em Membros, com a carteirinha preenchida, e
 // guarda a ficha na carteirinha dele) e o ❌ Desistiu (apaga a ficha), os
 // dois com confirmacao na propria ficha. As regras e o texto moram em
@@ -16,18 +17,16 @@ import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
 import { copiarTexto, escapeHtml, formatDataBR, hojeISO, imprimirTexto, mostrarAviso } from '../nucleo/util.js';
 import { recarregarEventos } from '../dados/carregar.js';
-import { SITUACAO_ANALISE, SITUACAO_NOVO, SITUACOES_PRETENDENTE, ehAprovado, irmaosComMesmoNome, linkDaFicha,
-  nomeDivisaoAdmissao, ordenarPretendentes, partesDoPretendente, textoFichaAdmissao } from '../dominio/admissao.js';
+import { ehAprovado, irmaosComMesmoNome, linkDaFicha, linkDaMesa, nomeDivisaoAdmissao, ordenarPretendentes,
+  partesDoPretendente, situacaoDe, textoFichaAdmissao } from '../dominio/admissao.js';
 import { botaoGerarRelatorio } from '../ui/comuns.js';
 
 const lista = () => state.pretendentesDados || [];
 const doId = (id) => lista().find(p => p.id === id) || null;
 const link = (chave) => linkDaFicha(window.location.href, chave);
-const CLASSE_SITUACAO = { [SITUACAO_NOVO]: 'novo', [SITUACAO_ANALISE]: 'analise', Aprovado: 'aprovado' };
-
 function seloSituacao(p) {
-  const s = SITUACOES_PRETENDENTE[p.situacao] || SITUACOES_PRETENDENTE[SITUACAO_NOVO];
-  return `<span class="pret-situacao ${CLASSE_SITUACAO[p.situacao] || 'novo'}">${s.emoji} ${escapeHtml(s.rotulo)}</span>`;
+  const s = situacaoDe(p);
+  return `<span class="pret-situacao ${ehAprovado(p) ? 'aprovado' : 'analise'}">${s.emoji} ${escapeHtml(s.rotulo)}</span>`;
 }
 
 // ---------- o link pra mandar ----------
@@ -51,6 +50,14 @@ function cardLink() {
       ${regional
         ? escoposNaOrdemOficial().map(e => linhaLink(e.chave, nomeDivisaoAdmissao(e.chave))).join('')
         : linhaLink(state.adminEscopo, '')}
+    </div>
+    <div class="card pret-links">
+      <div class="painel-titulo">🗂️ Link da Mesa</div>
+      <div class="pret-explica">Pros integrantes de mesa verem as fichas e lançarem no sistema do clube, sem entrar no app. Cada divisão abre com o PIN dela (o mesmo do Modo organizador).</div>
+      <div class="pret-link-linha">
+        <div class="pret-link-texto"><div class="pret-link-url">${escapeHtml(linkDaMesa(window.location.href))}</div></div>
+        <button class="btn secondary pret-link-copiar" data-action="pretendente-copiar-link" data-value="mesa">📋 Copiar</button>
+      </div>
     </div>`;
 }
 
@@ -68,10 +75,9 @@ function linhaPretendente(p, comDivisao) {
 }
 
 function resumo(l) {
-  const conta = (s) => l.filter(p => p.situacao === s).length;
-  const novos = l.filter(p => !ehAprovado(p) && p.situacao !== SITUACAO_ANALISE).length;
-  const analise = conta(SITUACAO_ANALISE), aprovados = l.filter(ehAprovado).length;
-  return `${l.length} ${l.length === 1 ? 'ficha' : 'fichas'} · 🆕 ${novos} ${novos === 1 ? 'nova' : 'novas'} · 🔎 ${analise} em análise`
+  const aprovados = l.filter(ehAprovado).length;
+  const analise = l.length - aprovados;
+  return `${l.length} ${l.length === 1 ? 'ficha' : 'fichas'} · 🔎 ${analise} em análise`
     + (aprovados ? ` · ✅ ${aprovados} ${aprovados === 1 ? 'aprovado' : 'aprovados'}` : '');
 }
 
@@ -144,16 +150,10 @@ function caixaAprovado(p) {
 // analise) e, embaixo, o Aprovado e o Desistiu.
 function acoesDaFicha(p) {
   const salvando = state.pretendenteSalvando ? 'disabled' : '';
-  const analise = p.situacao === SITUACAO_ANALISE;
   const conf = state.pretendenteConfirmar;
   return `
     <div class="pret-situacao-acao no-print">
-      ${analise ? `
-        <div class="pret-explica">🔎 Em análise${p.atualizadoEm ? ` desde ${escapeHtml(p.atualizadoEm)}` : ''}: esperando entrar no sistema do clube.</div>
-        <button class="btn ghost" data-action="pretendente-situacao" data-id="${escapeHtml(p.id)}" data-value="${SITUACAO_NOVO}" ${salvando}>↩ Voltar pra Novo</button>`
-      : `
-        <button class="btn secondary block" data-action="pretendente-situacao" data-id="${escapeHtml(p.id)}" data-value="${SITUACAO_ANALISE}" ${salvando}>🔎 Marcar Em análise</button>
-        <div class="pret-explica">Quando você começar a lançar os dados no sistema do clube.</div>`}
+      <div class="pret-explica">🔎 Em análise: a mesa lança os dados no sistema do clube. Quando ele entrar, toque em ✅ Aprovado.</div>
       ${conf ? painelConfirmar(p, conf) : `
         <div class="row-gap pret-decisao">
           <button class="btn" style="flex:1;" data-action="pretendente-confirmar" data-id="${escapeHtml(p.id)}" data-value="aprovar" ${salvando}>✅ Aprovado</button>
@@ -258,7 +258,8 @@ const agoraBR = () => new Date().toLocaleString('pt-BR', { day: '2-digit', month
 
 export const acoes = {
   'pretendente-copiar-link': async (id, target, action, e) => {
-    await copiarTexto(link(target.dataset.value));
+    const valor = target.dataset.value;
+    await copiarTexto(valor === 'mesa' ? linkDaMesa(window.location.href) : link(valor));
   },
   'abrir-pretendente': async (id, target, action, e) => {
     state.pretendenteAberto = id;
@@ -275,23 +276,6 @@ export const acoes = {
   'pretendentes-aprovados': async (id, target, action, e) => {
     state.pretendentesAprovadosAbertos = !state.pretendentesAprovadosAbertos;
     return render();
-  },
-  'pretendente-situacao': async (id, target, action, e) => {
-    const p = doId(id);
-    if (!p || state.pretendenteSalvando) return;
-    const situacao = target.dataset.value;
-    state.pretendenteSalvando = true;
-    render();
-    try {
-      await api('pretendenteSituacao', { id, situacao });
-      p.situacao = situacao;
-      p.atualizadoEm = agoraBR();
-      mostrarAviso(situacao === SITUACAO_ANALISE ? '🔎 Marcado Em análise' : '🆕 Voltou pra Novo');
-    } catch (err) {
-      // O balao do api() ja explica o erro (nucleo/falhas.js).
-    }
-    state.pretendenteSalvando = false;
-    render();
   },
   // Abre a confirmacao do Aprovado ou do Desistiu; tocar de novo fecha.
   'pretendente-confirmar': async (id, target, action, e) => {
