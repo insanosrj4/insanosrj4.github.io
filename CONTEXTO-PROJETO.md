@@ -1091,16 +1091,16 @@ dizendo o que vai acontecer.
   carteirinha (`apagarFicha`).
 - No 📜 Registro entram "Pretendente aprovado" e "Pretendente desistiu", com o
   nome no colete, nunca o CPF.
-- **6. Saúde** (25/11/2026, pedido do clube): tipo sanguíneo (os 8 e
-  "Não sei"), "Possui convênio?", "Tem alguma alergia?" e "Tem alguma
+- **6. Saúde** (25/11/2026, pedido do clube): tipo sanguíneo (os 8, sem
+  "Não sei": o integrante tem de informar), "Possui convênio?", "Tem alguma alergia?" e "Tem alguma
   condição de saúde?" — as três em Sim/Não, com o "Qual?" aparecendo só no
   Sim. Alergia e condição são perguntas separadas. Tudo obrigatório. Foto
   ficou de fora, por enquanto. Na planilha, são as 7 colunas depois do
   ID Membro (`ADMISSAO_CHAVES_SAUDE`). A página da ficha aberta antes do app
   novo, que não manda nenhum desses campos, ainda grava (com a saúde em
   branco); quem manda um tem de mandar todos.
-- **O Aprovado leva a saúde pra carteirinha** (`saudeDaFicha`): o tipo
-  ("Não sei" fica em branco), o convênio no Plano de saúde ("Não tem" no
+- **O Aprovado leva a saúde pra carteirinha** (`saudeDaFicha`): o tipo,
+  o convênio no Plano de saúde ("Não tem" no
   Não) e alergia e condição juntas no campo "Alergias e condições"
   ("Alergia: Dipirona · Condição: Diabetes"; "Nenhuma" se as duas forem
   Não). Ficha de antes da parte 6 deixa esses campos em branco.

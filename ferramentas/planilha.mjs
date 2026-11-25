@@ -1899,7 +1899,7 @@ log('=== pretendentes: ✅ Aprovado cadastra o irmão, ❌ Desistiu apaga a fich
   contexto.executar('admissaoEnviar', { ...base, divisao: 'curicica', cpf: '529.982.247-25', nomeColete: 'Lobo',
     tipoSanguineo: 'O+', convenio: 'Sim', convenioQual: 'Unimed', alergia: 'Sim', alergiaQual: 'Dipirona', condicao: 'Sim', condicaoQual: 'Diabetes' });
   contexto.executar('admissaoEnviar', { ...base, divisao: 'regional', cpf: '111.444.777-35', nomeColete: 'Urso',
-    tipoSanguineo: 'Não sei', convenio: 'Nao', alergia: 'Nao', alergiaQual: 'sobrou do Sim', condicao: 'Nao' });
+    tipoSanguineo: 'AB-', convenio: 'Nao', alergia: 'Nao', alergiaQual: 'sobrou do Sim', condicao: 'Nao' });
   contexto.executar('admissaoEnviar', { ...base, divisao: 'curicica', cpf: '123.456.789-09', nomeColete: 'Gato' });
   const tenta = (acao, x) => { try { return contexto.executarERegistrar(acao, x); } catch (e) { return { ok: false, erro: e.message }; } };
   const cur = { escopo: 'curicica', pin: '2020', divisao: 'curicica' };
@@ -1941,15 +1941,17 @@ log('=== pretendentes: ✅ Aprovado cadastra o irmão, ❌ Desistiu apaga a fich
   const idUrso = idDe('Urso');
   const urso = fichas().find(x => x.nomeColete === 'Urso');
   confere('a saúde vai pra planilha; o "qual" de quem disse Não fica vazio',
-    [urso.tipoSanguineo, urso.convenio, urso.alergia, urso.alergiaQual, urso.condicao], ['Não sei', 'Nao', 'Nao', '', 'Nao']);
+    [urso.tipoSanguineo, urso.convenio, urso.alergia, urso.alergiaQual, urso.condicao], ['AB-', 'Nao', 'Nao', '', 'Nao']);
   confere('do link do Regional, sem divisão, é recusado', tenta('pretendenteAprovar', { ...reg, id: idUrso }).ok, false);
   confere('do link do Regional, pro Regional, é recusado', tenta('pretendenteAprovar', { ...reg, id: idUrso, destino: 'regional' }).ok, false);
   confere('a Curicica NÃO aprova a do link do Regional', tenta('pretendenteAprovar', { ...cur, id: idUrso, destino: 'curicica' }).ok, false);
   const ru = tenta('pretendenteAprovar', { ...reg, id: idUrso, destino: 'barra' });
   confere('o Regional aprova e escolhe a Barra', [ru.ok, ru.divisao, membros().find(l => l[0] === ru.membroId)[3]], [true, 'barra', 'Barra - RJ4']);
   const cartUrso = tenta('fichaMembro', { ...reg, membroId: ru.membroId }).ficha;
-  confere('"Não sei" deixa o tipo em branco; sem convênio e sem nada, dito assim', [cartUrso.tipoSanguineo, cartUrso.planoSaude, cartUrso.saude],
-    ['', 'Não tem', 'Nenhuma']);
+  confere('sem convênio e sem nada, dito assim', [cartUrso.tipoSanguineo, cartUrso.planoSaude, cartUrso.saude],
+    ['AB-', 'Não tem', 'Nenhuma']);
+  confere('"Não sei" não vale mais como tipo sanguíneo',
+    tenta('admissaoEnviar', { ...base, divisao: 'barra', cpf: '390.533.447-05', nomeColete: 'Cão', tipoSanguineo: 'Não sei', convenio: 'Nao', alergia: 'Nao', condicao: 'Nao' }).ok, false);
   const cartGatoAntes = fichas().find(x => x.nomeColete === 'Gato');
   confere('a ficha de antes da Saúde vem com os campos em branco', [cartGatoAntes.tipoSanguineo, cartGatoAntes.convenio], ['', '']);
   confere('ficha que não existe é avisada', tenta('pretendenteAprovar', { ...reg, id: 'zz' }).ok, false);

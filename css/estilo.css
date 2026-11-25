@@ -3180,6 +3180,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .ficha-escolhas .chip-option { flex: 1 1 28%; min-width: 0; padding: 10px 6px; font-size: 14px; }
 .ficha-escolhas.larga .chip-option { flex-basis: 40%; }
 .ficha-escolhas.estreita .chip-option { flex-basis: 18%; }
+.ficha-escolhas.quatro .chip-option { flex-basis: 22%; }
 /* A caixinha "Não tem" fica na linha do rotulo, encostada a direita. */
 /* Altura fixa em todo rotulo, com ou sem caixinha: os campos lado a lado
    (Numero e Complemento) ficam na mesma linha. */

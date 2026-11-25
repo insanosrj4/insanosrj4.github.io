@@ -44,7 +44,9 @@ function htmlEscolha(campo) {
   const larga = campo.opcoes.length === 2 || campo.chave === 'origem';
   // 10 tamanhos de colete: 5 por linha, senao sobra um sozinho embaixo.
   const estreita = campo.opcoes.length === 10;
-  return `<div class="ficha-escolhas${larga ? ' larga' : ''}${estreita ? ' estreita' : ''}">${campo.opcoes.map(op => {
+  // 8 tipos sanguineos: 4 por linha, duas fileiras iguais.
+  const quatro = campo.opcoes.length === 8;
+  return `<div class="ficha-escolhas${larga ? ' larga' : ''}${estreita ? ' estreita' : ''}${quatro ? ' quatro' : ''}">${campo.opcoes.map(op => {
     const m = campo.chave === 'coleteMaterial' ? material(op) : null;
     const detalhe = m ? m.detalhe : (DETALHE_OPCAO[op] || '');
     return `<button type="button" class="chip-option" data-campo="${campo.chave}" data-valor="${escapeHtml(op)}">${escapeHtml(ROTULO_OPCAO[op] || op)}${detalhe ? `<span class="ficha-opcao-detalhe">${escapeHtml(detalhe)}</span>` : ''}</button>`;
@@ -82,10 +84,13 @@ function htmlCampo(campo) {
 // O texto do fim do PDF: no fim da ficha (como no PDF, antes de enviar) e de
 // novo na confirmacao, depois de enviar.
 // O site do M.C. citado nas observacoes vira link (abre em outra aba, pra
-// ficha nao se perder). O texto e escapado antes; so o endereco ganha a tag.
+// ficha nao se perder), e o trecho entre ** sai em negrito. O texto e
+// escapado antes; so o endereco e o negrito ganham tag.
 const SITE_MC = '18mc.com.br';
 function comLinkDoSite(texto) {
-  return escapeHtml(texto).replace(SITE_MC, `<a class="ficha-link" href="https://${SITE_MC}" target="_blank" rel="noopener noreferrer">${SITE_MC}</a>`);
+  return escapeHtml(texto)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(SITE_MC, `<a class="ficha-link" href="https://${SITE_MC}" target="_blank" rel="noopener noreferrer">${SITE_MC}</a>`);
 }
 
 function htmlObservacoes() {

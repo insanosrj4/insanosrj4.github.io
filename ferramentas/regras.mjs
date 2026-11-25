@@ -1917,7 +1917,7 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
     [chaves({ ...completa, tipoSanguineo: '', convenio: '' }), chaves({ ...completa, convenio: 'Sim', alergia: 'Sim', condicao: 'Sim' }),
       chaves({ ...completa, convenio: 'Sim', convenioQual: 'Unimed', alergia: 'Sim', alergiaQual: 'Dipirona', condicao: 'Sim', condicaoQual: 'Diabetes' })],
     [['tipoSanguineo', 'convenio'], ['convenioQual', 'alergiaQual', 'condicaoQual'], []]);
-  confere('"Não sei" vale como tipo sanguíneo', chaves({ ...completa, tipoSanguineo: 'Não sei' }), []);
+  confere('"Não sei" não vale: o tipo sanguíneo é obrigatório', chaves({ ...completa, tipoSanguineo: 'Não sei' }), ['tipoSanguineo']);
   confere('o padrinho não é mais campo à parte: é quem indicou', A.CAMPOS_FICHA.some(c => c.chave === 'padrinho'), false);
   confere('as caixinhas "Não tem" e "Não tenho" valem como resposta',
     chaves({ ...completa, complemento: A.SEM_COMPLEMENTO, telResidencial: A.SEM_TELEFONE }), []);
@@ -1954,8 +1954,7 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
   confere('as colunas da planilha seguem a ordem dos campos da ficha (sem a saúde)', doGs('ADMISSAO_CHAVES'),
     A.CAMPOS_FICHA.map(c => c.chave).filter(c => !saudeApp.includes(c)));
   confere('as colunas da saúde seguem a ordem da parte 6', doGs('ADMISSAO_CHAVES_SAUDE'), saudeApp);
-  confere('os tipos sanguíneos são os da carteirinha, mais o "Não sei"', [doGs('TIPOS_SANGUINEOS'), /var ADMISSAO_SEM_TIPO_SANGUE = '([^']+)';/.exec(gs)[1]],
-    [A.TIPOS_SANGUE, A.SEM_TIPO_SANGUE]);
+  confere('os tipos sanguíneos da ficha são os da carteirinha', doGs('TIPOS_SANGUINEOS'), A.TIPOS_SANGUE);
   confere('convênio, alergia e condição: o "Qual?" só no Sim',
     ['convenioQual', 'alergiaQual', 'condicaoQual'].map(c => A.CAMPOS_FICHA.find(x => x.chave === c).soSe), [['convenio', 'Sim'], ['alergia', 'Sim'], ['condicao', 'Sim']]);
   confere('as situações são as mesmas no app e no Code.gs', doGs('SITUACOES_PRETENDENTE'), Object.keys(A.SITUACOES_PRETENDENTE));

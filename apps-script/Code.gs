@@ -2796,9 +2796,8 @@ var ADMISSAO_UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 
 // Freio pra link que caiu em mao errada: passou disso no mesmo dia (somando
 // todas as divisoes), recusa ate amanha. Um dia normal tem 1 ou 2 fichas.
 var ADMISSAO_POR_DIA = 40;
-// O tipo sanguineo da ficha: os da carteirinha (TIPOS_SANGUINEOS) e o
-// "Nao sei", que na carteirinha fica em branco.
-var ADMISSAO_SEM_TIPO_SANGUE = 'Não sei';
+// O tipo sanguineo da ficha e um dos da carteirinha (TIPOS_SANGUINEOS), sem
+// "Nao sei": o integrante tem de informar (decisao do clube, 25/11/2026).
 var SITUACAO_PRETENDENTE_NOVO = 'Novo';
 
 function soDigitos(v) { return String(v === undefined || v === null ? '' : v).replace(/\D/g, ''); }
@@ -2897,7 +2896,7 @@ function receberFichaAdmissao(p) {
       var resp = escolha(chave, ADMISSAO_SIM_NAO, rotulo);
       return [resp, resp === 'Sim' ? texto(chave + 'Qual', max, 'Qual ' + rotulo.toLowerCase()) : ''];
     };
-    saude = [escolha('tipoSanguineo', TIPOS_SANGUINEOS.concat([ADMISSAO_SEM_TIPO_SANGUE]), 'Tipo sanguineo')]
+    saude = [escolha('tipoSanguineo', TIPOS_SANGUINEOS, 'Tipo sanguineo')]
       .concat(simNaoQual('convenio', 'Convenio', 80), simNaoQual('alergia', 'Alergia', 150), simNaoQual('condicao', 'Condicao de saude', 150));
   }
 

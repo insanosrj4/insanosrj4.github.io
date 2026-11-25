@@ -1018,7 +1018,7 @@ const fichaDeCadastro = { id:'f1', divisao:'barra', situacao:'Aprovado', enviado
   cidade:'Rio de Janeiro', uf:'RJ', celular:'(21) 99999-8888', telResidencial:'Não tenho', email:'joao@email.com',
   emergenciaNome:'Maria', emergenciaParentesco:'Esposa', emergenciaTelefone:'(21) 98888-7777', camisa:'G', colete:'G5',
   coleteMaterial:'Couro', pagamento:'À vista', parcelas:'', coletePagamento:'2026-12-10', origem:'Evento', quemIndicou:'',
-  tipoSanguineo:'Não sei', convenio:'Nao', convenioQual:'', alergia:'Sim', alergiaQual:'Dipirona', condicao:'Nao', condicaoQual:'' };
+  tipoSanguineo:'A-', convenio:'Nao', convenioQual:'', alergia:'Sim', alergiaQual:'Dipirona', condicao:'Nao', condicaoQual:'' };
 add('carteirinha / ficha de cadastro aberta', { ...cart, carteirinhaFicha: fichaCheia, carteirinhaCadastro: { carregando:false, erro:null, ficha: fichaDeCadastro } }, T.renderAdmin);
 add('carteirinha / ficha de cadastro (não tem)', { ...cart, carteirinhaFicha: fichaCheia, carteirinhaCadastro: { carregando:false, erro:null, ficha:null } }, T.renderAdmin);
 add('carteirinha / ficha de cadastro (buscando)', { ...cart, carteirinhaFicha: fichaCheia, carteirinhaCadastro: { carregando:true, erro:null, ficha:null } }, T.renderAdmin);

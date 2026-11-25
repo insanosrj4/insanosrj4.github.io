@@ -26,10 +26,9 @@ export const ORIGENS = ['Redes Sociais', 'Ação Social', 'Expansão', 'Evento',
 export const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB',
   'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
 export const PARCELAS_MAX = 10;
-// O tipo sanguineo (25/11/2026): os 8 da carteirinha e o "Nao sei", que na
-// carteirinha fica em branco.
+// O tipo sanguineo (25/11/2026): os 8 da carteirinha. Sem "Nao sei": o
+// integrante tem de informar (decisao do clube, 25/11/2026).
 export const TIPOS_SANGUE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-export const SEM_TIPO_SANGUE = 'Não sei';
 // O que fica escrito quando a caixinha "nao tem" e marcada. O Code.gs aceita
 // esses dois textos no lugar do complemento e do telefone residencial.
 export const SEM_COMPLEMENTO = 'Não tem';
@@ -86,7 +85,7 @@ export const PARTES_FICHA = [
   // ela completa. Convenio, alergia e condicao sao Sim/Nao, com o "Qual?"
   // so no Sim. Alergia e condicao sao perguntas separadas (pedido do clube).
   { titulo: '6. Saúde', campos: [
-    { chave: 'tipoSanguineo', rotulo: 'Tipo sanguíneo', tipo: 'escolha', opcoes: TIPOS_SANGUE.concat([SEM_TIPO_SANGUE]), obrig: true },
+    { chave: 'tipoSanguineo', rotulo: 'Tipo sanguíneo', tipo: 'escolha', opcoes: TIPOS_SANGUE, obrig: true },
     { chave: 'convenio', rotulo: 'Possui convênio (plano de saúde)?', tipo: 'escolha', opcoes: SIM_NAO, obrig: true },
     { chave: 'convenioQual', rotulo: 'Qual convênio?', tipo: 'texto', obrig: true, soSe: ['convenio', 'Sim'], max: 80, dica: 'Ex.: Unimed, Amil, Bradesco Saúde' },
     { chave: 'alergia', rotulo: 'Tem alguma alergia?', tipo: 'escolha', opcoes: SIM_NAO, obrig: true },
@@ -118,7 +117,10 @@ export const CAMPOS_FICHA = PARTES_FICHA.flatMap(p => p.campos);
 // mostradas depois que a ficha e enviada.
 export const OBSERVACOES_ADMISSAO = [
   'Verifique se o seu WhatsApp está desbloqueado para que um de nossos integrantes possa adicioná-lo aos grupos oficiais. Para liberar, acesse Configurações > Privacidade > Grupos e deixe habilitada a opção que permite que todos possam adicioná-lo a grupos.',
-  'Após finalizar o cadastro no sistema, você receberá um e-mail com a senha para login no site do M.C. (18mc.com.br). Use essa senha junto com o seu e-mail para fazer o primeiro acesso e aceitar os termos. Ao aceitar os termos, seu cadastro será concluído e o seu ADM poderá gerar o seu primeiro boleto.',
+  // 25/11/2026: deixa claro que esta ficha nao e o cadastro oficial - so
+  // junta os dados que o ADM lanca no sistema do M.C. O trecho entre ** sai
+  // em negrito (ver comLinkDoSite, em ficha.js).
+  '**Esta ficha ainda não é o seu cadastro oficial no clube.** Ela serve apenas para reunir os seus dados. Com eles em mãos, o ADM da sua divisão fará o seu cadastro no sistema oficial do M.C. Quando isso acontecer, você receberá um e-mail com a senha para acessar o site do M.C. (18mc.com.br). Use essa senha junto com o seu e-mail para fazer o primeiro acesso e aceitar os termos. Ao aceitar os termos, seu cadastro estará concluído e o seu ADM poderá gerar o seu primeiro boleto.',
   'O primeiro boleto será no valor de R$ 100,00, incluindo a 1ª mensalidade e o direito de uso de 1 camisa oficial do INSANOS M.C. Após esse primeiro pagamento, a mensalidade será no valor de R$ 75,00.',
 ];
 
