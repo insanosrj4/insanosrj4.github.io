@@ -84,7 +84,8 @@ function pagina404() {
 
 // O endereco antigo (vini04rock.github.io/Presenca-RJ4/...): depois da mudanca
 // pra organizacao insanosrj4, um repositorio pequeno no lugar do antigo so com
-// isto (index.html e 404.html iguais), que manda cada link velho pro novo:
+// isto (index.html, ficha.html, mesa.html e 404.html iguais), que manda cada
+// link velho pro novo:
 //   /Presenca-RJ4/                       -> /App
 //   /Presenca-RJ4/ficha.html?divisao=X   -> /Ficha-pretendentes/X
 //   /Presenca-RJ4/mesa.html              -> /Controle-pretendentes
@@ -134,6 +135,8 @@ export function gerarPaginas() {
   const antigo = paginaLinkAntigo();
   paginas.push({ caminho: 'ferramentas/link-antigo/index.html', conteudo: antigo });
   paginas.push({ caminho: 'ferramentas/link-antigo/404.html', conteudo: antigo });
+  paginas.push({ caminho: 'ferramentas/link-antigo/ficha.html', conteudo: antigo });
+  paginas.push({ caminho: 'ferramentas/link-antigo/mesa.html', conteudo: antigo });
   return paginas;
 }
 
