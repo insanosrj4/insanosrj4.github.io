@@ -53,6 +53,8 @@ const O_QUE = {
   funcaoPresencasSalvar: 'salvar as presenças',
   funcaoConfigSalvar: 'salvar o ajuste',
   pretendenteSituacao: 'mudar a situação da ficha',
+  pretendenteAprovar: 'aprovar o pretendente',
+  pretendenteRemover: 'apagar a ficha',
 };
 
 export function ehGravacaoComAviso(action) { return Object.prototype.hasOwnProperty.call(O_QUE, action); }

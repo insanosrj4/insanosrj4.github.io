@@ -3236,6 +3236,21 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 }
 .pret-situacao.novo { color: #E7C77E; background: rgba(212, 162, 76, 0.12); border: 1px solid rgba(212, 162, 76, 0.55); }
 .pret-situacao.analise { color: #9FC1EE; background: rgba(76, 134, 217, 0.12); border: 1px solid rgba(76, 134, 217, 0.55); }
+.pret-situacao.aprovado { color: #9BD8B0; background: rgba(76, 175, 110, 0.12); border: 1px solid rgba(76, 175, 110, 0.55); }
+/* O Aprovado e o Desistiu (25/11/2026): os botoes, a confirmacao na ficha e
+   os aprovados dobrados no fim da lista. */
+.pret-decisao { margin-top: 12px; }
+.pret-confirmar { margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid rgba(76, 175, 110, 0.55); background: rgba(76, 175, 110, 0.08); }
+.pret-confirmar.perigo { border-color: var(--danger-line); background: rgba(201, 80, 70, 0.08); }
+.pret-confirmar-titulo { font-weight: 700; font-size: 15px; color: var(--white-strong); margin-bottom: 8px; }
+.pret-confirmar-lista { margin: 0 0 10px; padding-left: 18px; font-size: 13px; color: var(--text); line-height: 1.5; }
+.pret-confirmar-lista li { margin-bottom: 4px; }
+.pret-aprovado-ok { font-weight: 700; font-size: 14px; color: #9BD8B0; }
+.pret-aprovados { margin-top: 14px; }
+.pret-aprovados-titulo { background: none; border: none; padding: 6px 0; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; }
+/* A ficha de cadastro dentro da carteirinha. */
+.cart-cadastro { margin-top: 12px; }
+.cart-cadastro .pret-parte { margin-top: 10px; }
 .pret-bloco { margin-bottom: 14px; }
 .pret-bloco-titulo { font-family: 'Rye', serif; font-size: 15px; color: var(--white-strong); margin: 4px 0 8px; }
 .pret-bloco-titulo span { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; color: var(--text-muted); }

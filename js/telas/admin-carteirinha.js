@@ -18,7 +18,7 @@ import { api, apiPost } from '../nucleo/api.js';
 import { LOGO_SRC } from '../nucleo/imagens.js';
 import { state } from '../nucleo/estado.js';
 import { render } from '../nucleo/render.js';
-import { copiarTexto, dataISOdeBR, escapeHtml, formatDataBR, hojeISO, mostrarAviso, ordenarPorHierarquia } from '../nucleo/util.js';
+import { copiarTexto, dataISOdeBR, escapeHtml, formatDataBR, hojeISO, imprimirTexto, mostrarAviso, ordenarPorHierarquia } from '../nucleo/util.js';
 import { montarRelatorioIndividual } from '../dominio/relatorio-individual.js';
 import { estaAfastado, textoIngresso } from '../dominio/movimentos.js';
 import { membrosDoEscopo } from '../dominio/estatisticas.js';
@@ -26,6 +26,7 @@ import { idadeEm, TIPOS_SANGUINEOS, linkWhatsApp, telefoneParaLink, textoCarteir
 import { escopoPorChave, escoposEmOrdemDeExibicao, funcaoPorChave } from '../nucleo/config.js';
 import { linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
 import { imagemCarteirinha, mostrarPreviaImagem } from '../ui/imagem.js';
+import { partesDoPretendente, textoFichaAdmissao } from '../dominio/admissao.js';
 
 function membro() { return state.roster.find(m => m.id === state.carteirinhaMembroId); }
 function ficha() { return state.carteirinhaFicha || {}; }
@@ -230,9 +231,53 @@ export function renderCarteirinhaMembro() {
         ? '<div class="loading">Buscando os dados do irmão…</div>'
         : (state.carteirinhaForm ? formulario() : `
           <button class="btn block no-print" data-action="editar-carteirinha">✏️ Editar dados</button>
+          ${fichaDeCadastro()}
           <div class="info-line no-print" style="padding:10px 0 0; color:var(--text-muted); font-size:11.5px; text-align:center;">🔒 Só quem entra com o PIN da divisão vê estes dados. Cuidado ao exportar: telefone e saúde vão junto.</div>
         `)}
   `;
+}
+
+// 📝 Ficha de cadastro (25/11/2026): a ficha de admissao que ele preencheu
+// pelo link, guardada no Aprovado (CPF, RG, endereco, colete...). So e
+// buscada no toque, e fica fora da Imagem, do PDF e do WhatsApp da
+// carteirinha (no-print): tem as proprias saidas, la dentro.
+function fichaDeCadastro() {
+  const c = state.carteirinhaCadastro;
+  const botao = `<button class="btn secondary block no-print" style="margin-top:10px;" data-action="ficha-cadastro-carteirinha">📝 Ficha de cadastro ${c ? '▾' : '▸'}</button>`;
+  if (!c) return botao;
+  let corpo;
+  if (c.carregando) corpo = '<div class="loading">Buscando a ficha de cadastro…</div>';
+  else if (c.erro) corpo = `<div class="alert"><div class="alert-msg">Não consegui buscar a ficha: ${escapeHtml(c.erro)}.</div></div>`;
+  else if (!c.ficha) corpo = '<div class="pret-explica">Este irmão não tem ficha de cadastro: ele entrou antes da ficha de admissão pelo link.</div>';
+  else corpo = `
+    <div class="row-gap" style="margin-top:10px;">
+      <button class="btn secondary" style="flex:1;" data-action="ficha-cadastro-whatsapp">📋 WhatsApp</button>
+      <button class="btn secondary" style="flex:1;" data-action="ficha-cadastro-pdf">📄 PDF</button>
+    </div>
+    ${partesDoPretendente(c.ficha).map(parte => `
+      <div class="card pret-parte">
+        <div class="ficha-parte-titulo">${escapeHtml(parte.titulo)}</div>
+        ${parte.linhas.map(l => `
+          <div class="pret-dado">
+            <div class="pret-dado-rotulo">${escapeHtml(l.rotulo)}</div>
+            <div class="pret-dado-valor">${escapeHtml(l.valor || '-')}</div>
+          </div>`).join('')}
+      </div>`).join('')}`;
+  return `${botao}<div class="cart-cadastro no-print">${corpo}</div>`;
+}
+
+async function buscarCadastro(id) {
+  state.carteirinhaCadastro = { carregando: true, erro: null, ficha: null };
+  render();
+  try {
+    const r = await api('fichaCadastro', { membroId: id });
+    if (state.carteirinhaMembroId !== id || !state.carteirinhaCadastro) return;
+    state.carteirinhaCadastro = { carregando: false, erro: null, ficha: r.ficha || null };
+  } catch (e) {
+    if (state.carteirinhaMembroId !== id || !state.carteirinhaCadastro) return;
+    state.carteirinhaCadastro = { carregando: false, erro: e.message, ficha: null };
+  }
+  render();
 }
 
 // A carteirinha inteira, num cartao so: em cima, igual a do Relatorio
@@ -428,6 +473,7 @@ export function fecharCarteirinha() {
   state.carteirinhaErro = null;
   state.carteirinhaMsg = null;
   state.carteirinhaCopiado = false;
+  state.carteirinhaCadastro = null;
   sairDaSelecao();
 }
 
@@ -486,6 +532,19 @@ export const acoes = {
     return buscar(id);
   },
   'recarregar-carteirinha': async (id, target, action, e) => buscar(state.carteirinhaMembroId),
+  // O 📝 Ficha de cadastro: abre (e busca) ou fecha.
+  'ficha-cadastro-carteirinha': async (id, target, action, e) => {
+    if (state.carteirinhaCadastro) { state.carteirinhaCadastro = null; return render(); }
+    return buscarCadastro(state.carteirinhaMembroId);
+  },
+  'ficha-cadastro-whatsapp': async (id, target, action, e) => {
+    const c = state.carteirinhaCadastro;
+    if (c && c.ficha) await copiarTexto(textoFichaAdmissao(c.ficha));
+  },
+  'ficha-cadastro-pdf': async (id, target, action, e) => {
+    const c = state.carteirinhaCadastro;
+    if (c && c.ficha) imprimirTexto(textoFichaAdmissao(c.ficha));
+  },
   // As tres saidas (30/10/2026, a pedido - antes a carteirinha nao saia do
   // app). O PDF e a impressao da propria tela, como no Relatorio individual.
   'imprimir-carteirinha': async (id, target, action, e) => { window.print(); },

@@ -1905,6 +1905,7 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
     profissao: 'Mecânico', moto: 'Sim', carro: 'Nao', cep: '22790-000', endereco: 'Av. X', numero: '10', complemento: 'não tem',
     bairro: 'Recreio', cidade: 'Rio', uf: 'rj', celular: '(21) 99999-8888', telResidencial: '(21) 2222-3333', email: 'a@b.com',
     emergenciaNome: 'Maria', emergenciaParentesco: 'Esposa', emergenciaTelefone: '(21) 98888-7777',
+    tipoSanguineo: 'O+', convenio: 'Nao', alergia: 'Nao', condicao: 'Nao',
     camisa: 'G', colete: 'G5', coleteMaterial: 'Couro', pagamento: 'À vista', parcelas: '7', coletePagamento: '2026-12-10', origem: 'Evento', quemIndicou: 'x',
   };
   const chaves = (v) => A.conferirFicha(v, '2026-11-14').map(e => e.chave);
@@ -1912,6 +1913,11 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
   confere('tudo o que estava no PDF é cobrado',
     chaves({ ...completa, nomeCompleto: ' ', moto: '', complemento: '', telResidencial: '', coletePagamento: '' }),
     ['nomeCompleto', 'moto', 'complemento', 'telResidencial', 'coletePagamento']);
+  confere('a saúde é cobrada, e o "Qual?" só no Sim',
+    [chaves({ ...completa, tipoSanguineo: '', convenio: '' }), chaves({ ...completa, convenio: 'Sim', alergia: 'Sim', condicao: 'Sim' }),
+      chaves({ ...completa, convenio: 'Sim', convenioQual: 'Unimed', alergia: 'Sim', alergiaQual: 'Dipirona', condicao: 'Sim', condicaoQual: 'Diabetes' })],
+    [['tipoSanguineo', 'convenio'], ['convenioQual', 'alergiaQual', 'condicaoQual'], []]);
+  confere('"Não sei" vale como tipo sanguíneo', chaves({ ...completa, tipoSanguineo: 'Não sei' }), []);
   confere('o padrinho não é mais campo à parte: é quem indicou', A.CAMPOS_FICHA.some(c => c.chave === 'padrinho'), false);
   confere('as caixinhas "Não tem" e "Não tenho" valem como resposta',
     chaves({ ...completa, complemento: A.SEM_COMPLEMENTO, telResidencial: A.SEM_TELEFONE }), []);
@@ -1942,7 +1948,16 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
     [A.SIM_NAO, A.TAMANHOS, A.TAMANHOS_COLETE, A.MATERIAIS_COLETE.map(m => m.valor), A.FORMAS_PAGAMENTO, A.ORIGENS, A.UFS]);
   confere('o máximo de parcelas é o mesmo nos dois lados', Number((/var ADMISSAO_PARCELAS_MAX = (\d+);/.exec(gs) || [])[1]), A.PARCELAS_MAX);
   const cab = doGs('CAB_PRETENDENTES');
-  confere('as colunas da planilha seguem a ordem dos campos da ficha', doGs('ADMISSAO_CHAVES'), A.CAMPOS_FICHA.map(c => c.chave));
+  // As colunas: ADMISSAO_CHAVES (5 a 33) e, depois do ID Membro, a saude
+  // (25/11/2026), que no app e a parte 6. Juntas, sao todos os campos.
+  const saudeApp = A.PARTES_FICHA.find(pt => pt.titulo.includes('Saúde')).campos.map(c => c.chave);
+  confere('as colunas da planilha seguem a ordem dos campos da ficha (sem a saúde)', doGs('ADMISSAO_CHAVES'),
+    A.CAMPOS_FICHA.map(c => c.chave).filter(c => !saudeApp.includes(c)));
+  confere('as colunas da saúde seguem a ordem da parte 6', doGs('ADMISSAO_CHAVES_SAUDE'), saudeApp);
+  confere('os tipos sanguíneos são os da carteirinha, mais o "Não sei"', [doGs('TIPOS_SANGUINEOS'), /var ADMISSAO_SEM_TIPO_SANGUE = '([^']+)';/.exec(gs)[1]],
+    [A.TIPOS_SANGUE, A.SEM_TIPO_SANGUE]);
+  confere('convênio, alergia e condição: o "Qual?" só no Sim',
+    ['convenioQual', 'alergiaQual', 'condicaoQual'].map(c => A.CAMPOS_FICHA.find(x => x.chave === c).soSe), [['convenio', 'Sim'], ['alergia', 'Sim'], ['condicao', 'Sim']]);
   confere('as situações são as mesmas no app e no Code.gs', doGs('SITUACOES_PRETENDENTE'), Object.keys(A.SITUACOES_PRETENDENTE));
 
   // O card Pretendentes: a ordem da lista, o link e o texto da ficha.
@@ -1960,7 +1975,16 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
   confere('o texto da ficha: datas, Não, colete e parcelas como se lê',
     ['Data de nascimento: 21/05/1990', 'Possui carro?: Não', 'Material do colete: Couro (R$ 900,00)', 'Em quantas vezes?: 4x (com juros da operadora)'].every(l => texto.includes(l)), true);
   confere('o texto da ficha: quem indicou só aparece no Indicado', texto.some(l => l.startsWith('Quem te indicou')), false);
-  confere('a planilha tem uma coluna por campo da ficha (mais as 5 de controle)', cab ? cab.length : 0, A.CAMPOS_FICHA.length + 5);
+  confere('a planilha tem uma coluna por campo da ficha (mais as 5 de controle e o ID Membro)', cab ? cab.length : 0, A.CAMPOS_FICHA.length + 6);
+  const colMembro = Number((/var COL_PRETENDENTE_MEMBRO = (\d+);/.exec(gs) || [])[1]);
+  confere('o ID Membro fica na coluna do COL_PRETENDENTE_MEMBRO, logo depois de "Quem Indicou"',
+    [cab ? cab[colMembro] : '', cab ? cab[colMembro - 1] : ''], ['ID Membro', 'Quem Indicou']);
+  confere('lista: Novos, depois Em análise, os Aprovados no fim',
+    A.ordenarPretendentes([pr('a', 'Aprovado', '20/11/2026 09:00'), pr('b', 'Em análise', '01/11/2026 10:00'), pr('c', 'Novo', '02/11/2026 08:00')]).map(x => x.id),
+    ['c', 'b', 'a']);
+  confere('nome repetido: sem acento, maiúscula nem espaço',
+    A.irmaosComMesmoNome([{ nome: 'LOBÃO ' }, { nome: 'Lobo' }, { nome: 'Urso' }], ' lobão').map(m => m.nome), ['LOBÃO ']);
+  confere('nome vazio não acha ninguém', A.irmaosComMesmoNome([{ nome: '' }], '').length, 0);
 }
 {
   log('');
@@ -1971,7 +1995,7 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
   const bloco = /var ACOES_PROTEGIDAS = \[([\s\S]*?)\];/.exec(code)[1].replace(/\/\/.*$/gm, '');
   const protegidas = [...bloco.matchAll(/'([a-zA-Z]+)'/g)].map(m => m[1]);
   const LEITURAS = ['responsavel', 'doacoes', 'caixinha', 'movimentos', 'estoqueAdm', 'acoesSociais', 'fichaMembro',
-    'fichasVarias', 'aniversarios', 'funcoesEspeciais', 'pretendentes', 'registro'];
+    'fichasVarias', 'aniversarios', 'funcoesEspeciais', 'pretendentes', 'registro', 'fichaCadastro'];
   const semFrase = protegidas.filter(a => !LEITURAS.includes(a)).concat(['presenca']).filter(a => !F.ehGravacaoComAviso(a));
   confere('toda gravação tem a frase do balão', semFrase, []);
   confere('leitura e ficha do pretendente não abrem balão', LEITURAS.concat(['dados', 'presencas', 'admissaoEnviar']).filter(a => F.ehGravacaoComAviso(a)), []);

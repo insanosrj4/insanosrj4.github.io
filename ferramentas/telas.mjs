@@ -395,7 +395,7 @@ add('organizador / área ADM (oeste)', { isAdmin:true, adminEscopo:'oeste', orga
     cidade: 'Rio de Janeiro', uf: 'RJ', celular: '(21) 99999-8888', telResidencial: 'Não tenho', email: 'joao@email.com',
     emergenciaNome: 'Maria', emergenciaParentesco: 'Esposa', emergenciaTelefone: '(21) 98888-7777', camisa: 'G',
     colete: 'G5', coleteMaterial: 'Couro', pagamento: 'Parcelado', parcelas: '4', coletePagamento: '2026-12-10', origem: 'Indicado',
-    quemIndicou: 'Fulano', ...extra });
+    quemIndicou: 'Fulano', tipoSanguineo: 'O+', convenio: 'Sim', convenioQual: 'Unimed', alergia: 'Nao', alergiaQual: '', condicao: 'Sim', condicaoQual: 'Diabetes', ...extra });
   const fichas = [pret('a', 'curicica', 'Novo'), pret('bb', 'curicica', 'Em análise', { atualizadoEm: '14/11/2026 11:00' }), pret('ccc', 'barra', 'Novo')];
   const pr = { isAdmin:true, adminTab:'pretendentes' };
   add('pretendentes / divisão com fichas', { ...pr, adminEscopo:'curicica', pretendentesDados: fichas.filter(f => f.divisao === 'curicica') }, T.renderAdmin);
@@ -405,6 +405,18 @@ add('organizador / área ADM (oeste)', { isAdmin:true, adminEscopo:'oeste', orga
   add('pretendentes / ficha aberta (em análise)', { ...pr, adminEscopo:'regional', pretendentesDados: fichas, pretendenteAberto:'bb' }, T.renderAdmin);
   add('pretendentes / buscando', { ...pr, adminEscopo:'barra', pretendentesDados:null, pretendentesCarregando:true }, T.renderAdmin);
   add('pretendentes / erro', { ...pr, adminEscopo:'barra', pretendentesDados:null, pretendentesCarregando:false, pretendentesErro:'Falha de conexao' }, T.renderAdmin);
+  // O Aprovado e o Desistiu (25/11/2026).
+  const comAprovado = fichas.concat([pret('dddd', 'curicica', 'Aprovado', { membroId: 'm1', atualizadoEm: '20/11/2026 15:00' }),
+    pret('eeeee', 'regional', 'Novo')]);
+  add('pretendentes / divisão com aprovados dobrados', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado.filter(f => f.divisao === 'curicica') }, T.renderAdmin);
+  add('pretendentes / divisão com aprovados abertos', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado.filter(f => f.divisao === 'curicica'), pretendentesAprovadosAbertos:true }, T.renderAdmin);
+  add('pretendentes / regional com aprovados abertos', { ...pr, adminEscopo:'regional', pretendentesDados: comAprovado, pretendentesAprovadosAbertos:true }, T.renderAdmin);
+  add('pretendentes / confirmar aprovado', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'a', pretendenteConfirmar:{ tipo:'aprovar', destino:null } }, T.renderAdmin);
+  add('pretendentes / confirmar aprovado (link do Regional, sem divisão)', { ...pr, adminEscopo:'regional', pretendentesDados: comAprovado, pretendenteAberto:'eeeee', pretendenteConfirmar:{ tipo:'aprovar', destino:null } }, T.renderAdmin);
+  add('pretendentes / confirmar aprovado (link do Regional, Barra)', { ...pr, adminEscopo:'regional', pretendentesDados: comAprovado, pretendenteAberto:'eeeee', pretendenteConfirmar:{ tipo:'aprovar', destino:'barra' } }, T.renderAdmin);
+  add('pretendentes / confirmar aprovado (cadastrando)', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'bb', pretendenteConfirmar:{ tipo:'aprovar', destino:null }, pretendenteSalvando:true }, T.renderAdmin);
+  add('pretendentes / confirmar desistiu', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'a', pretendenteConfirmar:{ tipo:'desistiu', destino:null } }, T.renderAdmin);
+  add('pretendentes / ficha aprovada', { ...pr, adminEscopo:'curicica', pretendentesDados: comAprovado, pretendenteAberto:'dddd' }, T.renderAdmin);
 }
 add('organizador / área Operacional (oeste)', { isAdmin:true, adminEscopo:'oeste', organizadorArea:'operacional' }, T.renderMenuOrganizador);
 for (const aba of ['eventos','membros','encerrados','presencas','insights','insights-rodadas','insights-relatorio']) {
@@ -999,6 +1011,18 @@ add('carteirinha / vazia',                  { ...cart, carteirinhaFicha: {} }, T
 add('carteirinha / editando',               { ...cart, carteirinhaFicha: fichaCheia, carteirinhaForm: { ...fichaCheia, nascimentoTexto:'12/03/1985' } }, T.renderAdmin);
 add('carteirinha / carregando',             { ...cart, carteirinhaCarregando: true }, T.renderAdmin);
 add('carteirinha / erro',                   { ...cart, carteirinhaErro: 'Sem permissao para os dados desta divisao' }, T.renderAdmin);
+// O 📝 Ficha de cadastro (25/11/2026).
+const fichaDeCadastro = { id:'f1', divisao:'barra', situacao:'Aprovado', enviadoEm:'14/11/2026 10:00', membroId: membros[0].id,
+  nomeColete:'Lobo', nomeCompleto:'João da Silva', cpf:'529.982.247-25', rg:'123', nascimento:'1990-05-21', profissao:'Mecânico',
+  moto:'Sim', carro:'Nao', cep:'22790-000', endereco:'Av. das Américas', numero:'100', complemento:'Não tem', bairro:'Recreio',
+  cidade:'Rio de Janeiro', uf:'RJ', celular:'(21) 99999-8888', telResidencial:'Não tenho', email:'joao@email.com',
+  emergenciaNome:'Maria', emergenciaParentesco:'Esposa', emergenciaTelefone:'(21) 98888-7777', camisa:'G', colete:'G5',
+  coleteMaterial:'Couro', pagamento:'À vista', parcelas:'', coletePagamento:'2026-12-10', origem:'Evento', quemIndicou:'',
+  tipoSanguineo:'Não sei', convenio:'Nao', convenioQual:'', alergia:'Sim', alergiaQual:'Dipirona', condicao:'Nao', condicaoQual:'' };
+add('carteirinha / ficha de cadastro aberta', { ...cart, carteirinhaFicha: fichaCheia, carteirinhaCadastro: { carregando:false, erro:null, ficha: fichaDeCadastro } }, T.renderAdmin);
+add('carteirinha / ficha de cadastro (não tem)', { ...cart, carteirinhaFicha: fichaCheia, carteirinhaCadastro: { carregando:false, erro:null, ficha:null } }, T.renderAdmin);
+add('carteirinha / ficha de cadastro (buscando)', { ...cart, carteirinhaFicha: fichaCheia, carteirinhaCadastro: { carregando:true, erro:null, ficha:null } }, T.renderAdmin);
+add('carteirinha / ficha de cadastro (erro)', { ...cart, carteirinhaFicha: fichaCheia, carteirinhaCadastro: { carregando:false, erro:'Falha de conexao', ficha:null } }, T.renderAdmin);
 add('ações sociais / erro',                 { ...asoc, acoesSociaisErro:'Falha de conexão' }, T.renderAdmin);
 
 // Funcoes especiais (Batedores e Caveiras), so no Regional.
@@ -1099,6 +1123,8 @@ const LIMPO = {
   funcaoEspecial:null, funcoesDados:null, funcoesCarregando:false, funcoesErro:null, funcoesSalvando:false, funcoesMsg:null,
   funcoesForm:null, funcoesAberto:null, funcoesRascunho:{}, funcoesCorrigindo:false, funcoesApagarId:null, funcoesPeriodo:0,
   gerarRelatorioAberto:null,
+  pretendentesDados:null, pretendentesCarregando:false, pretendentesErro:null, pretendenteAberto:null, pretendenteSalvando:false,
+  pretendenteConfirmar:null, pretendentesAprovadosAbertos:false, carteirinhaCadastro:null,
 };
 log('');
 log('=== 2. desenhar cada tela e aba ===');

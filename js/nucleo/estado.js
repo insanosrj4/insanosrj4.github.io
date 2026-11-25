@@ -280,6 +280,10 @@ export let state = {
   carteirinhaSalvando: false,
   carteirinhaMsg: null,
   carteirinhaCopiado: false,
+  // O 📝 Ficha de cadastro da carteirinha (25/11/2026): a ficha de admissao
+  // de quem entrou pelo link. So e buscada no toque.
+  // null = fechada; { carregando, erro, ficha } = aberta.
+  carteirinhaCadastro: null,
   // Exportar varias carteirinhas (aba Carteirinhas): o formato escolhido
   // ('imagem' | 'pdf' | 'whatsapp', null = sem selecao), os marcados e as
   // prontas ({ membro, ficha, pct }).
@@ -478,6 +482,12 @@ export let state = {
   pretendentesErro: null,
   pretendenteAberto: null,
   pretendenteSalvando: false,
+  // O ✅ Aprovado e o ❌ Desistiu (25/11/2026) pedem confirmacao na propria
+  // ficha: { tipo: 'aprovar' | 'desistiu', destino } (destino = a divisao
+  // escolhida, quando a ficha veio pelo link do Regional). E a lista dos
+  // aprovados, dobrada no fim.
+  pretendenteConfirmar: null,
+  pretendentesAprovadosAbertos: false,
 
   movimentosDados: null,
   movimentosDadosEscopo: null,

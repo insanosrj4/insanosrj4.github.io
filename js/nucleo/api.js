@@ -44,7 +44,7 @@ const ACOES_PROTEGIDAS = [
   'fichaMembro', 'fichaMembroSalvar', 'fichasVarias', 'aniversarios',
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
   'funcaoConfigSalvar',
-  'pretendentes', 'pretendenteSituacao',
+  'pretendentes', 'pretendenteSituacao', 'pretendenteAprovar', 'pretendenteRemover', 'fichaCadastro',
   // O Registro (17/11/2026): so o Regional le.
   'registro',
 ];

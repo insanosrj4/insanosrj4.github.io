@@ -26,12 +26,16 @@ export const ORIGENS = ['Redes Sociais', 'Ação Social', 'Expansão', 'Evento',
 export const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB',
   'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'];
 export const PARCELAS_MAX = 10;
+// O tipo sanguineo (25/11/2026): os 8 da carteirinha e o "Nao sei", que na
+// carteirinha fica em branco.
+export const TIPOS_SANGUE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+export const SEM_TIPO_SANGUE = 'Não sei';
 // O que fica escrito quando a caixinha "nao tem" e marcada. O Code.gs aceita
 // esses dois textos no lugar do complemento e do telefone residencial.
 export const SEM_COMPLEMENTO = 'Não tem';
 export const SEM_TELEFONE = 'Não tenho';
 
-// As 7 partes da ficha. Cada campo:
+// As 8 partes da ficha (a 6, Saude, desde 25/11/2026). Cada campo:
 //   tipo  - texto, cpf, data, cep, uf, telefone, email, numero, escolha
 //   meia  - divide a linha com o vizinho (numero e complemento, cidade e UF)
 //   obrig - obrigatorio. Tudo o que estava no PDF e (decisao do clube,
@@ -78,7 +82,20 @@ export const PARTES_FICHA = [
     { chave: 'emergenciaParentesco', rotulo: 'Grau de parentesco', tipo: 'texto', obrig: true, max: 40 },
     { chave: 'emergenciaTelefone', rotulo: 'Telefone do contato', tipo: 'telefone', obrig: true },
   ] },
-  { titulo: '6. Entrada no clube', campos: [
+  // A saude (25/11/2026): o que a carteirinha tem, pra o Aprovado ja deixar
+  // ela completa. Convenio, alergia e condicao sao Sim/Nao, com o "Qual?"
+  // so no Sim. Alergia e condicao sao perguntas separadas (pedido do clube).
+  { titulo: '6. Saúde', campos: [
+    { chave: 'tipoSanguineo', rotulo: 'Tipo sanguíneo', tipo: 'escolha', opcoes: TIPOS_SANGUE.concat([SEM_TIPO_SANGUE]), obrig: true },
+    { chave: 'convenio', rotulo: 'Possui convênio (plano de saúde)?', tipo: 'escolha', opcoes: SIM_NAO, obrig: true },
+    { chave: 'convenioQual', rotulo: 'Qual convênio?', tipo: 'texto', obrig: true, soSe: ['convenio', 'Sim'], max: 80, dica: 'Ex.: Unimed, Amil, Bradesco Saúde' },
+    { chave: 'alergia', rotulo: 'Tem alguma alergia?', tipo: 'escolha', opcoes: SIM_NAO, obrig: true },
+    { chave: 'alergiaQual', rotulo: 'Qual alergia?', tipo: 'texto', obrig: true, soSe: ['alergia', 'Sim'], max: 150, dica: 'Ex.: dipirona, camarão, picada de abelha' },
+    { chave: 'condicao', rotulo: 'Tem alguma condição de saúde?', tipo: 'escolha', opcoes: SIM_NAO, obrig: true,
+      ajuda: 'Algo que quem estiver junto precisa saber numa emergência.' },
+    { chave: 'condicaoQual', rotulo: 'Qual condição?', tipo: 'texto', obrig: true, soSe: ['condicao', 'Sim'], max: 150, dica: 'Ex.: diabetes, pressão alta, epilepsia' },
+  ] },
+  { titulo: '7. Entrada no clube', campos: [
     { chave: 'camisa', rotulo: 'Tamanho da camisa', tipo: 'escolha', opcoes: TAMANHOS, obrig: true },
     { chave: 'colete', rotulo: 'Tamanho do colete novo', tipo: 'escolha', opcoes: TAMANHOS_COLETE, obrig: true },
     { chave: 'coleteMaterial', rotulo: 'Material do colete', tipo: 'escolha', opcoes: MATERIAIS_COLETE.map(m => m.valor), obrig: true },
@@ -87,7 +104,7 @@ export const PARTES_FICHA = [
       ajuda: 'Até 10x, com juros da operadora.' },
     { chave: 'coletePagamento', rotulo: 'Data possível de pagamento do colete', tipo: 'data', obrig: true },
   ] },
-  { titulo: '7. Origem da admissão', campos: [
+  { titulo: '8. Origem da admissão', campos: [
     { chave: 'origem', rotulo: 'Como chegou até o clube?', tipo: 'escolha', opcoes: ORIGENS, obrig: true },
     // Quem indica vira o padrinho (decisao do clube, 14/11/2026): o campo
     // "Padrinho" da parte 6 saiu, e e este que diz quem e.
@@ -209,13 +226,26 @@ export function fichaParaEnvio(valores) {
 // ---------- o card Pretendentes (o organizador le as fichas) ----------
 
 // O caminho do pretendente (14/11/2026). Novo: acabou de enviar. Em analise:
-// esperando entrar no sistema do clube. (Aprovado e Desistiu sao a Etapa 3.)
+// esperando entrar no sistema do clube. Aprovado (25/11/2026): virou irmao -
+// cadastrado em Membros, e a ficha fica guardada na carteirinha dele
+// (📝 Ficha de cadastro). O Desistiu nao e situacao: apaga a ficha.
 export const SITUACAO_NOVO = 'Novo';
 export const SITUACAO_ANALISE = 'Em análise';
+export const SITUACAO_APROVADO = 'Aprovado';
 export const SITUACOES_PRETENDENTE = {
   [SITUACAO_NOVO]: { emoji: '🆕', rotulo: 'Novo' },
   [SITUACAO_ANALISE]: { emoji: '🔎', rotulo: 'Em análise' },
+  [SITUACAO_APROVADO]: { emoji: '✅', rotulo: 'Aprovado' },
 };
+export const ehAprovado = (p) => !!p && p.situacao === SITUACAO_APROVADO;
+
+// O nome no colete ja existe no clube? Compara sem acento, maiuscula nem
+// espaco sobrando ("Lobo" = "LOBO "). E so aviso - pode ser outra pessoa.
+const nomeComparavel = (n) => String(n || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+export function irmaosComMesmoNome(roster, nome) {
+  const alvo = nomeComparavel(nome);
+  return alvo ? (roster || []).filter(m => nomeComparavel(m.nome) === alvo) : [];
+}
 
 // 'curicica' -> 'Divisão Curicica'; 'regional' -> 'Regional RJ4'.
 export function nomeDivisaoAdmissao(chave) {
@@ -230,11 +260,14 @@ export function linkDaFicha(enderecoDoApp, chave) {
   try { return new URL(caminho, enderecoDoApp).href; } catch (e) { return caminho; }
 }
 
-// Os Novos primeiro (sao os que pedem acao), e dentro de cada situacao o
-// mais recente em cima. "Enviado em" vem como dd/mm/aaaa hh:mm.
+// Os Novos primeiro (sao os que pedem acao), depois Em analise e os
+// Aprovados no fim; dentro de cada situacao, o mais recente em cima.
+// "Enviado em" vem como dd/mm/aaaa hh:mm.
 const instante = (t) => { const m = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/.exec(String(t || '')); return m ? `${m[3]}${m[2]}${m[1]}${m[4]}${m[5]}` : ''; };
+const ORDEM_SITUACAO = { [SITUACAO_NOVO]: 0, [SITUACAO_ANALISE]: 1, [SITUACAO_APROVADO]: 2 };
+const posicao = (p) => (p.situacao in ORDEM_SITUACAO ? ORDEM_SITUACAO[p.situacao] : 0);
 export function ordenarPretendentes(lista) {
-  return [...lista].sort((a, b) => (a.situacao === SITUACAO_NOVO ? 0 : 1) - (b.situacao === SITUACAO_NOVO ? 0 : 1)
+  return [...lista].sort((a, b) => posicao(a) - posicao(b)
     || instante(b.enviadoEm).localeCompare(instante(a.enviadoEm)));
 }
 

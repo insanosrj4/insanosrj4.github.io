@@ -998,16 +998,14 @@ que saiu.
 
 Criada em 14/11/2026 para tirar do WhatsApp (e do PDF editável) a ficha de
 quem quer entrar no clube. Em três etapas: **1)** o link e a gravação;
-**2)** o card **📝 Pretendentes** (abaixo); **3)** ainda a fazer: o
-**✅ Aprovado** (cadastra em Membros com grau X, data de ingresso no dia,
-carteirinha preenchida, e apaga o que não é da carteirinha) e o
-**❌ Desistiu** (apaga tudo).
+**2)** o card **📝 Pretendentes** (abaixo); **3)** (25/11/2026) o
+**✅ Aprovado** e o **❌ Desistiu** (abaixo).
 
 - **Uma página à parte**, `ficha.html` + `js/ficha.js`, irmã do `index.html`:
   só a ficha, sem calendário, rank nem menu. **Um link por divisão**:
   `ficha.html?divisao=curicica` (as 7 chaves de `ESCOPOS`, inclusive
   `regional`). Sem divisão válida, a página diz que o link está incompleto.
-- **As regras moram em `dominio/admissao.js`**: as 7 partes do PDF
+- **As regras moram em `dominio/admissao.js`**: as 7 partes do PDF, mais a **6. Saúde** (25/11/2026, abaixo)
   (`PARTES_FICHA`), as máscaras (CPF, CEP, telefone), o `cpfValido`, o
   `conferirFicha` e o `fichaParaEnvio`. Ajustada pro celular: o "Sim ou Não",
   os tamanhos, o material, a forma de pagamento e a origem viraram botões;
@@ -1050,7 +1048,7 @@ carteirinha preenchida, e apaga o que não é da carteirinha) e o
 - **A lista**: os 🆕 Novos primeiro, o mais recente em cima
   (`ordenarPretendentes`). No Regional, um bloco por divisão na ordem
   oficial, com "— nenhuma ficha" nas vazias.
-- **Tocar abre a ficha** inteira, nas 7 partes, com 📞 Ligar e 💬 WhatsApp
+- **Tocar abre a ficha** inteira, nas 8 partes, com 📞 Ligar e 💬 WhatsApp
   pro celular dele, o **🔎 Marcar Em análise** (quando começa a lançar no
   sistema do clube; dá pra voltar pra Novo) e o 📊 Gerar relatório com
   📋 WhatsApp e 📄 PDF: o mesmo texto (`textoFichaAdmissao`), pra passar os
@@ -1060,6 +1058,54 @@ carteirinha preenchida, e apaga o que não é da carteirinha) e o
   mexe na ficha da Curicica, e o Regional vê todas. A situação só vai de Novo
   pra Em análise e de volta (`SITUACOES_PRETENDENTE`, nos dois lados).
 - Busca as fichas ao entrar na seção (`carregarPretendentes`).
+
+**✅ Aprovado e ❌ Desistiu** (Etapa 3, 25/11/2026), na ficha aberta, em
+Novo **e** em Em análise. Os dois abrem uma confirmação na própria ficha,
+dizendo o que vai acontecer.
+
+- **✅ Aprovado** (`aprovarPretendente`, no `Code.gs`, numa ida só): o irmão
+  entra em Membros com o **nome no colete**, grau **X**, a divisão do link e
+  a data de ingresso **de hoje** (pelo `salvarMembro`, que já anota a
+  Entrada no livro). A carteirinha (`MembrosFicha`) nasce com nome completo,
+  celular, nascimento e contato de emergência. Cadastro novo não entra nos
+  eventos já abertos, igual ao Cadastro. Se já existe irmão com o mesmo
+  nome, a confirmação avisa (`irmaosComMesmoNome`), sem impedir.
+- **Ficha vinda pelo link do Regional:** a confirmação pede a divisão, em
+  botões (o Regional é grau V; o novo entra como X numa divisão). O
+  `Code.gs` recusa sem divisão ou com o Regional.
+- **A ficha não é apagada** (decisão do clube, 25/11/2026: o sistema oficial
+  usa esses dados). Vira `Aprovado`, com o ID do irmão na coluna
+  **ID Membro** (a última de `Pretendentes`, acrescentada sozinha), e fica
+  dobrada no fim da lista ("✅ N aprovados ▸"). Não volta pra Novo à mão nem
+  sai pelo Desistiu.
+- **📝 Ficha de cadastro**, na carteirinha do irmão (Membros › Carteirinhas):
+  um botão que busca e mostra a ficha inteira, com 📋 WhatsApp e 📄 PDF
+  próprios. Fica fora da Imagem, do PDF e do WhatsApp da carteirinha. Lê
+  pela ação `fichaCadastro`, com o PIN conferido contra a divisão **atual**
+  do irmão (como a carteirinha). Quem entrou antes da ficha não tem.
+- **❌ Desistiu** (`removerPretendente`): apaga a linha inteira. O CPF pode
+  mandar a ficha de novo.
+- **Remover o irmão** (cadastro feito errado, inclusive um Aprovado tocado sem
+  querer) devolve a ficha pra **Em análise**, sem o ID (`devolverPretendente`).
+  **Desligamento e transferência pra fora da RJ4** apagam a ficha junto com a
+  carteirinha (`apagarFicha`).
+- No 📜 Registro entram "Pretendente aprovado" e "Pretendente desistiu", com o
+  nome no colete, nunca o CPF.
+- **6. Saúde** (25/11/2026, pedido do clube): tipo sanguíneo (os 8 e
+  "Não sei"), "Possui convênio?", "Tem alguma alergia?" e "Tem alguma
+  condição de saúde?" — as três em Sim/Não, com o "Qual?" aparecendo só no
+  Sim. Alergia e condição são perguntas separadas. Tudo obrigatório. Foto
+  ficou de fora, por enquanto. Na planilha, são as 7 colunas depois do
+  ID Membro (`ADMISSAO_CHAVES_SAUDE`). A página da ficha aberta antes do app
+  novo, que não manda nenhum desses campos, ainda grava (com a saúde em
+  branco); quem manda um tem de mandar todos.
+- **O Aprovado leva a saúde pra carteirinha** (`saudeDaFicha`): o tipo
+  ("Não sei" fica em branco), o convênio no Plano de saúde ("Não tem" no
+  Não) e alergia e condição juntas no campo "Alergias e condições"
+  ("Alergia: Dipirona · Condição: Diabetes"; "Nenhuma" se as duas forem
+  Não). Ficha de antes da parte 6 deixa esses campos em branco.
+- **Precisa do Code.gs na versão `2026-11-25-admissao-aprovado`, publicado
+  antes do app.**
 
 ## Ações Sociais (o planejador de cada divisão)
 

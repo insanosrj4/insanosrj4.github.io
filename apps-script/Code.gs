@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-23-saude-viagem';
+var VERSAO = '2026-11-25-admissao-aprovado';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -269,7 +269,14 @@ var CAB_PRETENDENTES = ['ID', 'Divisao', 'Situacao', 'Enviado em', 'Atualizado e
   'CEP', 'Endereco', 'Numero', 'Complemento', 'Bairro', 'Cidade', 'UF',
   'Celular', 'Tel Residencial', 'Email', 'Emergencia Nome', 'Emergencia Parentesco', 'Emergencia Telefone',
   'Camisa', 'Colete', 'Colete Material', 'Pagamento', 'Parcelas', 'Colete Pagamento',
-  'Origem', 'Quem Indicou'];
+  'Origem', 'Quem Indicou',
+  // 25/11/2026: o ID do irmao que nasceu do Aprovado. Vazio enquanto e
+  // pretendente. A ficha fica guardada e aparece na carteirinha dele
+  // (Ficha de cadastro), em vez de ser apagada.
+  'ID Membro',
+  // 25/11/2026: a saude (parte 6 da ficha), pra o Aprovado ja deixar a
+  // carteirinha completa. No fim, pra aba() criar as colunas sozinha.
+  'Tipo Sanguineo', 'Convenio', 'Convenio Qual', 'Alergia', 'Alergia Qual', 'Condicao', 'Condicao Qual'];
 
 // Na planilha fica o rotulo legivel; o app continua falando em chaves.
 var STATUS_ROTULO = {
@@ -384,7 +391,9 @@ var ACOES_PROTEGIDAS = [
   'funcaoConfigSalvar',
   // As fichas de admissao: CPF, RG e endereco. Enviar (admissaoEnviar) e
   // publico; ler e mexer, so com o PIN da divisao do link.
-  'pretendentes', 'pretendenteSituacao',
+  'pretendentes', 'pretendenteSituacao', 'pretendenteAprovar', 'pretendenteRemover',
+  // A ficha de admissao de quem ja e irmao (na carteirinha): CPF, RG...
+  'fichaCadastro',
   // O Registro: so o Regional le.
   'registro'
 ];
@@ -496,6 +505,9 @@ function executar(action, p) {
   if (action === 'admissaoEnviar') return comTrava(function () { return receberFichaAdmissao(p); });
   if (action === 'pretendentes') return lerPretendentes(String(p.divisao || ''), String(p.pin || ''));
   if (action === 'pretendenteSituacao') return comTrava(function () { return mudarSituacaoPretendente(p); });
+  if (action === 'pretendenteAprovar') return comTrava(function () { return aprovarPretendente(p); });
+  if (action === 'pretendenteRemover') return comTrava(function () { return removerPretendente(p); });
+  if (action === 'fichaCadastro') return lerFichaCadastro(p);
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -603,7 +615,8 @@ var ROTULOS_REGISTRO = {
   fichaMembroSalvar: 'Carteirinha salva',
   funcaoEventoSalvar: 'Funções: evento', funcaoEventoStatus: 'Funções: situação do evento', funcaoEventoRemover: 'Funções: evento apagado',
   funcaoPresencasSalvar: 'Funções: presenças', funcaoConfigSalvar: 'Funções: ajuste',
-  pretendenteSituacao: 'Pretendente: situação', admissaoEnviar: 'Ficha de admissão'
+  pretendenteSituacao: 'Pretendente: situação', admissaoEnviar: 'Ficha de admissão',
+  pretendenteAprovar: 'Pretendente aprovado', pretendenteRemover: 'Pretendente desistiu'
 };
 
 // O que entra no lugar de executar() nas duas portas (doGet e doPost): roda
@@ -655,6 +668,12 @@ function contextoAntesDoRegistro(action, p) {
   if (action === 'membroRemover' || action === 'insightMembroRemover' || action === 'insightMembroReincluir') return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, id) };
   if (action === 'membroMovimentar' || action === 'membroConfirmarGrau' || action === 'fichaMembroSalvar') {
     return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, String(p.membroId || '')) };
+  }
+  // O nome no colete do pretendente (nao e dado pessoal: e como o clube o chama).
+  if (action === 'pretendenteAprovar' || action === 'pretendenteRemover') {
+    var pret = planilha().getSheetByName(ABA_PRETENDENTES);
+    var linhaPret = pret ? acharLinha(pret, function (l) { return String(l[0]) === id; }) : null;
+    return { nome: linhaPret ? String(linhaPret.valores[5] || '') : '' };
   }
   if (action === 'estoqueAdmMovimentar' || action === 'estoqueAdmTipo') {
     var mid = String(action === 'estoqueAdmTipo' ? id : (p.materialId || ''));
@@ -762,6 +781,8 @@ function detalheDoRegistro(a, p, r, antes) {
     case 'funcaoConfigSalvar': x = [p.chave === 'caveira01' ? 'Caveira 01' : p.chave, antes.nome || (p.valor ? p.valor : 'ninguém')]; break;
     case 'pretendenteSituacao': x = ['→ ' + p.situacao]; break;
     case 'admissaoEnviar': x = [div(p.divisao)]; break;
+    case 'pretendenteAprovar': x = [antes.nome || p.id, r.ok ? 'entrou na ' + div(r.divisao) + ' como grau X' : '']; break;
+    case 'pretendenteRemover': x = [antes.nome || p.id, 'ficha apagada']; break;
     default: x = [p.id];
   }
   return x.filter(function (v) { return v !== undefined && v !== null && String(v).trim() !== ''; }).join(' · ');
@@ -1941,6 +1962,7 @@ function removerMembro(id) {
     var s = planilha().getSheetByName(par[0]);
     if (s) apagarLinhas(s, function (l) { return String(l[par[1]]) === mid; });
   });
+  devolverPretendente(mid);
   return { ok: true };
 }
 
@@ -2731,6 +2753,9 @@ function salvarFichaMembro(p) {
 function apagarFicha(membroId) {
   var s = planilha().getSheetByName(ABA_FICHAS);
   if (s) apagarLinhas(s, function (l) { return String(l[0]) === String(membroId); });
+  // A ficha de admissao guardada desde o Aprovado (25/11/2026) vai junto.
+  var pret = planilha().getSheetByName(ABA_PRETENDENTES);
+  if (pret) apagarLinhas(pret, function (l) { return String(l[COL_PRETENDENTE_MEMBRO] || '') === String(membroId); });
 }
 
 // Os aniversarios do mural: nome, divisao e nascimento dos integrantes da
@@ -2771,6 +2796,9 @@ var ADMISSAO_UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 
 // Freio pra link que caiu em mao errada: passou disso no mesmo dia (somando
 // todas as divisoes), recusa ate amanha. Um dia normal tem 1 ou 2 fichas.
 var ADMISSAO_POR_DIA = 40;
+// O tipo sanguineo da ficha: os da carteirinha (TIPOS_SANGUINEOS) e o
+// "Nao sei", que na carteirinha fica em branco.
+var ADMISSAO_SEM_TIPO_SANGUE = 'Não sei';
 var SITUACAO_PRETENDENTE_NOVO = 'Novo';
 
 function soDigitos(v) { return String(v === undefined || v === null ? '' : v).replace(/\D/g, ''); }
@@ -2858,6 +2886,21 @@ function receberFichaAdmissao(p) {
     pagamento, parcelas, coletePagamento, origem, quemIndicou
   ];
 
+  // A saude (25/11/2026), na ordem das colunas depois do ID Membro. A
+  // pagina da ficha que ainda nao conhece a parte 6 (aberta antes de o app
+  // novo subir) manda sem nenhum desses campos: entra com eles em branco, em
+  // vez de recusar a ficha de quem ja preencheu tudo.
+  var saude = ['', '', '', '', '', '', ''];
+  var temSaude = ADMISSAO_CHAVES_SAUDE.some(function (c) { return p[c] !== undefined && p[c] !== null && String(p[c]) !== ''; });
+  if (temSaude) {
+    var simNaoQual = function (chave, rotulo, max) {
+      var resp = escolha(chave, ADMISSAO_SIM_NAO, rotulo);
+      return [resp, resp === 'Sim' ? texto(chave + 'Qual', max, 'Qual ' + rotulo.toLowerCase()) : ''];
+    };
+    saude = [escolha('tipoSanguineo', TIPOS_SANGUINEOS.concat([ADMISSAO_SEM_TIPO_SANGUE]), 'Tipo sanguineo')]
+      .concat(simNaoQual('convenio', 'Convenio', 80), simNaoQual('alergia', 'Alergia', 150), simNaoQual('condicao', 'Condicao de saude', 150));
+  }
+
   var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
   var existentes = linhas(s);
   // O mesmo CPF duas vezes: recusa, em vez de trocar a ficha que ja esta la -
@@ -2870,7 +2913,7 @@ function receberFichaAdmissao(p) {
   if (existentes.filter(function (l) { return String(l[3] || '').slice(0, 10) === diaDeHoje; }).length >= ADMISSAO_POR_DIA) {
     throw new Error('Muitas fichas hoje - tente de novo amanha ou fale com o ADM da sua divisao');
   }
-  gravarLinhaComoTexto(s, s.getLastRow() + 1, [novoId(), divisao, SITUACAO_PRETENDENTE_NOVO, agora(), ''].concat(valores));
+  gravarLinhaComoTexto(s, s.getLastRow() + 1, [novoId(), divisao, SITUACAO_PRETENDENTE_NOVO, agora(), ''].concat(valores, [''], saude));
   return { ok: true };
 }
 
@@ -2885,15 +2928,29 @@ var ADMISSAO_CHAVES = ['nomeColete', 'nomeCompleto', 'cpf', 'rg', 'nascimento', 
   'emergenciaNome', 'emergenciaParentesco', 'emergenciaTelefone', 'camisa', 'colete', 'coleteMaterial',
   'pagamento', 'parcelas', 'coletePagamento', 'origem', 'quemIndicou'];
 // O caminho do pretendente: Novo (acabou de enviar) -> Em analise (esperando
-// entrar no sistema do clube). O Aprovado e o Desistiu sao a Etapa 3.
-var SITUACOES_PRETENDENTE = ['Novo', 'Em análise'];
+// entrar no sistema do clube) -> Aprovado (virou irmao; ver aprovarPretendente).
+// O Aprovado (25/11/2026) e o fim do caminho: cadastra o irmao e guarda a
+// ficha. Ele nao se marca a mao - so pelo aprovarPretendente.
+var SITUACAO_PRETENDENTE_ANALISE = 'Em análise';
+var SITUACAO_PRETENDENTE_APROVADO = 'Aprovado';
+var SITUACOES_PRETENDENTE = ['Novo', 'Em análise', 'Aprovado'];
+var SITUACOES_PRETENDENTE_MANUAIS = ['Novo', 'Em análise'];
+// A coluna 'ID Membro' (a ultima de CAB_PRETENDENTES), contando do zero.
+var COL_PRETENDENTE_MEMBRO = 34;
+// A saude (25/11/2026) vem depois do ID Membro, nesta ordem: ADMISSAO_CHAVES
+// e as colunas 5 a 33, e estas as 35 a 41. No app, a parte 6 da ficha.
+var ADMISSAO_CHAVES_SAUDE = ['tipoSanguineo', 'convenio', 'convenioQual', 'alergia', 'alergiaQual', 'condicao', 'condicaoQual'];
 
 function pretendenteDaLinha(l) {
   var p = { id: String(l[0]), divisao: String(l[1] || ''), situacao: String(l[2] || SITUACAO_PRETENDENTE_NOVO),
-    enviadoEm: String(l[3] || ''), atualizadoEm: String(l[4] || '') };
+    enviadoEm: String(l[3] || ''), atualizadoEm: String(l[4] || ''), membroId: String(l[COL_PRETENDENTE_MEMBRO] || '') };
   ADMISSAO_CHAVES.forEach(function (chave, i) {
     var v = l[5 + i];
     p[chave] = (chave === 'nascimento' || chave === 'coletePagamento') ? formatarData(v) : String(v === undefined || v === null ? '' : v);
+  });
+  ADMISSAO_CHAVES_SAUDE.forEach(function (chave, i) {
+    var v = l[COL_PRETENDENTE_MEMBRO + 1 + i];
+    p[chave] = String(v === undefined || v === null ? '' : v);
   });
   return p;
 }
@@ -2909,13 +2966,104 @@ function lerPretendentes(divisao, pin) {
 // a Barra nao mexe na ficha de quem mandou pelo link do Oeste.
 function mudarSituacaoPretendente(p) {
   var situacao = String(p.situacao || '');
-  if (SITUACOES_PRETENDENTE.indexOf(situacao) === -1) throw new Error('Situacao invalida');
+  if (SITUACOES_PRETENDENTE_MANUAIS.indexOf(situacao) === -1) throw new Error('Situacao invalida');
   var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
   var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.id || ''); });
   if (!achado) throw new Error('Ficha nao encontrada - pode ter sido apagada');
   if (!podeNaDivisao(String(achado.valores[1]), String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  if (String(achado.valores[2]) === SITUACAO_PRETENDENTE_APROVADO) throw new Error('Esta ficha ja foi aprovada - o irmao ja esta em Membros');
   gravarLinhaComoTexto(s, achado.indice, [achado.valores[0], achado.valores[1], situacao, String(achado.valores[3] || ''), agora()]);
   return { ok: true };
+}
+
+// Aprovado (25/11/2026): o pretendente vira irmao, numa ida so.
+//   - Membros: nome = o nome no colete, grau X, a divisao do link, data de
+//     ingresso hoje (salvarMembro, que ja anota a Entrada no livro). Ficha
+//     vinda pelo link do Regional pede a divisao (p.destino): o Regional e
+//     grau V, e o novo entra como X numa divisao.
+//   - Carteirinha (MembrosFicha): nome completo, celular, nascimento e o
+//     contato de emergencia, tirados da ficha.
+//   - A ficha NAO e apagada (decisao do clube, 25/11/2026: o sistema oficial
+//     usa esses dados): vira 'Aprovado', com o ID do irmao, e passa a ser
+//     lida pela carteirinha dele (lerFichaCadastro).
+// O PIN vale pra divisao do LINK (a da linha), como no resto do card.
+// Cadastro novo nao entra nos eventos ja abertos - igual ao Cadastro.
+function aprovarPretendente(p) {
+  var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.id || ''); });
+  if (!achado) throw new Error('Ficha nao encontrada - pode ter sido apagada');
+  var doLink = String(achado.valores[1] || '');
+  if (!podeNaDivisao(doLink, String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  if (String(achado.valores[2]) === SITUACAO_PRETENDENTE_APROVADO) throw new Error('Esta ficha ja foi aprovada - o irmao ja esta em Membros');
+  var destino = doLink;
+  if (doLink === 'regional') {
+    destino = String(p.destino || '');
+    if (ESCOPOS_VALIDOS.indexOf(destino) === -1 || destino === 'regional') throw new Error('Escolha a divisao onde ele entra');
+  }
+  var f = pretendenteDaLinha(achado.valores);
+  var nome = linhaCurta(f.nomeColete, 60);
+  if (!nome) throw new Error('A ficha esta sem o nome no colete');
+  var hoje = Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+  var r = salvarMembro({ nome: nome, grau: 'X', divisao: ESCOPOS_NOME[destino], funcoes: '', cargo: '', entrada: hoje });
+  var mid = String(r.id);
+  var nascimento = /^\d{4}-\d{2}-\d{2}$/.test(f.nascimento) ? f.nascimento : '';
+  var saude = saudeDaFicha(f);
+  var fichas = aba(ABA_FICHAS, CAB_FICHAS);
+  gravarLinhaComoTexto(fichas, fichas.getLastRow() + 1, [mid, telefoneLimpo(f.celular),
+    linhaCurta(f.emergenciaNome, 80), linhaCurta(f.emergenciaParentesco, 40), telefoneLimpo(f.emergenciaTelefone),
+    nascimento, saude.tipo, saude.condicoes, '', agora(), linhaCurta(f.nomeCompleto, 120), saude.plano]);
+  gravarLinhaComoTexto(s, achado.indice, [achado.valores[0], doLink, SITUACAO_PRETENDENTE_APROVADO, String(achado.valores[3] || ''), agora()]);
+  s.getRange(achado.indice, COL_PRETENDENTE_MEMBRO + 1).setNumberFormat('@').setValue(mid);
+  return { ok: true, membroId: mid, divisao: destino };
+}
+
+// A saude da ficha no formato da carteirinha, que tem um campo so pra
+// alergias e condicoes. Ficha de antes da parte 6 (tudo em branco) deixa a
+// carteirinha em branco tambem.
+function saudeDaFicha(f) {
+  var tipo = TIPOS_SANGUINEOS.indexOf(f.tipoSanguineo) !== -1 ? f.tipoSanguineo : '';
+  var plano = f.convenio === 'Sim' ? linhaCurta(f.convenioQual, 80) : f.convenio === 'Nao' ? 'Não tem' : '';
+  var partes = [];
+  if (f.alergia === 'Sim') partes.push('Alergia: ' + f.alergiaQual);
+  if (f.condicao === 'Sim') partes.push('Condição: ' + f.condicaoQual);
+  var condicoes = partes.length ? partes.join(' · ') : (f.alergia === 'Nao' && f.condicao === 'Nao' ? 'Nenhuma' : '');
+  return { tipo: tipo, plano: plano, condicoes: linhaCurta(condicoes, 300) };
+}
+
+// Desistiu: a ficha some inteira (CPF, RG, endereco...). A de quem ja foi
+// aprovado nao sai por aqui: ela e do irmao, e sai com ele (apagarFicha).
+function removerPretendente(p) {
+  var s = aba(ABA_PRETENDENTES, CAB_PRETENDENTES);
+  var achado = acharLinha(s, function (l) { return String(l[0]) === String(p.id || ''); });
+  if (!achado) throw new Error('Ficha nao encontrada - pode ter sido apagada');
+  if (!podeNaDivisao(String(achado.valores[1] || ''), String(p.pin || ''))) return SEM_PERMISSAO_DIVISAO;
+  if (String(achado.valores[2]) === SITUACAO_PRETENDENTE_APROVADO) throw new Error('Esta ficha ja e de um irmao aprovado - ela fica na carteirinha dele');
+  s.deleteRow(achado.indice);
+  return { ok: true };
+}
+
+// A ficha de admissao de quem ja e irmao - o "Ficha de cadastro" da
+// carteirinha. O PIN vale pra divisao ATUAL dele (como a carteirinha): se
+// foi transferido, a divisao nova ve. Quem entrou antes da ficha nao tem.
+function lerFichaCadastro(p) {
+  var mid = String(p.membroId || '');
+  var dono = integranteDaDivisao(mid, String(p.pin || ''));
+  if (dono.recusa) return dono.recusa;
+  var s = planilha().getSheetByName(ABA_PRETENDENTES);
+  var achado = s ? acharLinha(s, function (l) { return mid && String(l[COL_PRETENDENTE_MEMBRO] || '') === mid; }) : null;
+  return { ok: true, ficha: achado ? pretendenteDaLinha(achado.valores) : null };
+}
+
+// O Remover e pra cadastro feito errado - inclusive um Aprovado tocado sem
+// querer. Ai a ficha nao some: volta pra Em analise, pronta pra aprovar de
+// novo (ou pro Desistiu).
+function devolverPretendente(mid) {
+  var s = planilha().getSheetByName(ABA_PRETENDENTES);
+  if (!s) return;
+  var achado = acharLinha(s, function (l) { return String(l[COL_PRETENDENTE_MEMBRO] || '') === String(mid); });
+  if (!achado) return;
+  gravarLinhaComoTexto(s, achado.indice, [achado.valores[0], achado.valores[1], SITUACAO_PRETENDENTE_ANALISE, String(achado.valores[3] || ''), agora()]);
+  s.getRange(achado.indice, COL_PRETENDENTE_MEMBRO + 1).setValue('');
 }
 
 // ---------- ACOES SOCIAIS (o planejador de cada divisao) ----------

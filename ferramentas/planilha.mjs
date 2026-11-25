@@ -1810,7 +1810,8 @@ log('=== ficha de admissão: o link do pretendente grava sem PIN, e confere tudo
   confere('CPF, CEP, UF e telefones gravados no formato certo', [l[7], l[13], l[19], l[20], l[25]],
     ['529.982.247-25', '22790-000', 'RJ', '(21) 99999-8888', '(21) 98888-7777']);
   confere('à vista: as parcelas não valem; quem indicou só no Indicado', [l[30], l[33]], ['', '']);
-  confere('o cabeçalho tem uma coluna por valor', p.abas.Pretendentes.dados[0].length, l.length);
+  confere('o cabeçalho tem uma coluna por valor (o ID Membro vai vazio até o Aprovado)', [p.abas.Pretendentes.dados[0].length, l[34]], [l.length, '']);
+  confere('a página antiga, sem a parte da Saúde, ainda grava (com a saúde em branco)', l.slice(35), ['', '', '', '', '', '', '']);
   confere('o mesmo CPF de novo é recusado e não troca a ficha',
     [tenta(ficha({ nomeColete: 'Outro' })).ok, linhasP().length, linhasP()[0][5]], [false, 1, 'Lobo']);
   confere('CPF inválido é recusado', tenta(ficha({ cpf: '529.982.247-26' })).ok, false);
@@ -1828,6 +1829,12 @@ log('=== ficha de admissão: o link do pretendente grava sem PIN, e confere tudo
   confere('indicado sem quem indicou é recusado', tenta(ficha({ cpf: outro, origem: 'Indicado', quemIndicou: '' })).ok, false);
   confere('nascimento no futuro é recusado', tenta(ficha({ cpf: outro, nascimento: daquiA(3) })).ok, false);
   confere('telefone sem DDD é recusado', tenta(ficha({ cpf: outro, celular: '99999-8888' })).ok, false);
+  // A saude (25/11/2026): quem manda um campo dela tem de mandar todos.
+  const saude = { tipoSanguineo: 'O+', convenio: 'Sim', convenioQual: 'Unimed', alergia: 'Nao', alergiaQual: 'ignorado', condicao: 'Sim', condicaoQual: 'Diabetes' };
+  confere('saúde pela metade é recusada', tenta(ficha({ cpf: outro, tipoSanguineo: 'O+' })).ok, false);
+  confere('tipo sanguíneo fora da lista é recusado', tenta(ficha({ cpf: outro, ...saude, tipoSanguineo: 'Z+' })).ok, false);
+  confere('convênio Sim sem dizer qual é recusado', tenta(ficha({ cpf: outro, ...saude, convenioQual: '' })).ok, false);
+  confere('condição Sim sem dizer qual é recusada', tenta(ficha({ cpf: outro, ...saude, condicaoQual: '' })).ok, false);
   confere('nada recusado foi gravado', linhasP().length, 1);
   confere('parcelado e indicado entram',
     tenta(ficha({ cpf: outro, divisao: 'regional', pagamento: 'Parcelado', parcelas: '4', origem: 'Indicado' })).ok, true);
@@ -1877,6 +1884,97 @@ log('=== pretendentes: ler e mudar a situação, só com o PIN da divisão do li
     ['Em análise', true, '111.444.777-35', 'Urso']);
   confere('e volta pra Novo', [tenta('pretendenteSituacao', { ...reg, id: idUrso, situacao: 'Novo' }).ok, tenta('pretendentes', reg).pretendentes[1].situacao], [true, 'Novo']);
   confere('ficha que não existe é avisada', tenta('pretendenteSituacao', { ...reg, id: 'zz', situacao: 'Novo' }).ok, false);
+}
+
+log('');
+log('=== pretendentes: ✅ Aprovado cadastra o irmão, ❌ Desistiu apaga a ficha ===');
+{
+  const p = montaPlanilha([], []);
+  const { contexto } = carregaCodeGs(p, { PIN_REGIONAL: '0418', PIN_BARRA: '1801', PIN_CURICICA: '2020' });
+  const base = { nomeCompleto: 'João da Silva', rg: '1', nascimento: '1990-05-21', profissao: 'X', moto: 'Sim', carro: 'Nao',
+    cep: '22790-000', endereco: 'Rua', numero: '1', complemento: 'Não tem', bairro: 'B', cidade: 'Rio', uf: 'RJ', celular: '21999998888',
+    telResidencial: 'Não tenho', email: 'a@b.com', emergenciaNome: 'Maria', emergenciaParentesco: 'Esposa', emergenciaTelefone: '21988887777',
+    camisa: 'G', colete: 'G3', coleteMaterial: 'Couro', pagamento: 'À vista', parcelas: '', coletePagamento: '2026-12-01',
+    origem: 'Evento', quemIndicou: '', site: '' };
+  contexto.executar('admissaoEnviar', { ...base, divisao: 'curicica', cpf: '529.982.247-25', nomeColete: 'Lobo',
+    tipoSanguineo: 'O+', convenio: 'Sim', convenioQual: 'Unimed', alergia: 'Sim', alergiaQual: 'Dipirona', condicao: 'Sim', condicaoQual: 'Diabetes' });
+  contexto.executar('admissaoEnviar', { ...base, divisao: 'regional', cpf: '111.444.777-35', nomeColete: 'Urso',
+    tipoSanguineo: 'Não sei', convenio: 'Nao', alergia: 'Nao', alergiaQual: 'sobrou do Sim', condicao: 'Nao' });
+  contexto.executar('admissaoEnviar', { ...base, divisao: 'curicica', cpf: '123.456.789-09', nomeColete: 'Gato' });
+  const tenta = (acao, x) => { try { return contexto.executarERegistrar(acao, x); } catch (e) { return { ok: false, erro: e.message }; } };
+  const cur = { escopo: 'curicica', pin: '2020', divisao: 'curicica' };
+  const bar = { escopo: 'barra', pin: '1801', divisao: 'barra' };
+  const reg = { escopo: 'regional', pin: '0418', divisao: 'regional' };
+  const fichas = () => tenta('pretendentes', reg).pretendentes;
+  const idDe = (nome) => fichas().find(x => x.nomeColete === nome).id;
+  const membros = () => (p.abas.Membros ? p.abas.Membros.dados.slice(1) : []);
+
+  confere('aprovar sem PIN é recusado', tenta('pretendenteAprovar', { id: idDe('Lobo') }).ok, false);
+  confere('a Barra NÃO aprova a ficha da Curicica', tenta('pretendenteAprovar', { ...bar, id: idDe('Lobo') }).ok, false);
+  confere('nada foi cadastrado nas recusas', membros().length, 0);
+  const r = tenta('pretendenteAprovar', { ...cur, id: idDe('Lobo') });
+  confere('a Curicica aprova (direto do Novo)', [r.ok, r.divisao], [true, 'curicica']);
+  const m = membros()[0];
+  const hoje = contexto.agora().slice(0, 10).split('/').reverse().join('-');
+  confere('entra em Membros: nome do colete, grau X, a divisão do link, ingresso hoje', [m[0], m[1], m[2], m[3], m[8]],
+    [r.membroId, 'Lobo', 'X', 'Curicica - RJ4', hoje]);
+  confere('a Entrada vai pro livro', (p.abas.Movimentacoes ? p.abas.Movimentacoes.dados.slice(1) : []).filter(l => String(l[3]) === r.membroId).length, 1);
+  const cart = tenta('fichaMembro', { ...cur, membroId: r.membroId }).ficha;
+  confere('a carteirinha nasce com nome completo, celular, nascimento e emergência',
+    [cart.nomeCompleto, cart.telefone, cart.nascimento, cart.emergenciaNome, cart.emergenciaParentesco, cart.emergenciaTelefone],
+    ['João da Silva', '(21) 99999-8888', '1990-05-21', 'Maria', 'Esposa', '(21) 98888-7777']);
+  confere('e com a saúde: tipo, convênio, e alergia e condição juntas no campo da carteirinha',
+    [cart.tipoSanguineo, cart.planoSaude, cart.saude], ['O+', 'Unimed', 'Alergia: Dipirona · Condição: Diabetes']);
+  const lobo = fichas().find(x => x.nomeColete === 'Lobo');
+  confere('a ficha NÃO é apagada: vira Aprovado, com o ID do irmão, e o CPF fica', [lobo.situacao, lobo.membroId, lobo.cpf],
+    ['Aprovado', r.membroId, '529.982.247-25']);
+  confere('aprovar de novo é recusado', tenta('pretendenteAprovar', { ...cur, id: lobo.id }).ok, false);
+  confere('aprovado não volta pra Novo à mão', tenta('pretendenteSituacao', { ...cur, id: lobo.id, situacao: 'Novo' }).ok, false);
+  confere('aprovado não sai pelo Desistiu', tenta('pretendenteRemover', { ...cur, id: lobo.id }).ok, false);
+
+  // A ficha de cadastro, na carteirinha: PIN da divisao ATUAL do irmao.
+  confere('a carteirinha lê a ficha de cadastro', tenta('fichaCadastro', { ...cur, membroId: r.membroId }).ficha.rg, '1');
+  confere('sem PIN, não', tenta('fichaCadastro', { membroId: r.membroId }).ok, false);
+  confere('a Barra NÃO lê a ficha de um irmão da Curicica', tenta('fichaCadastro', { ...bar, membroId: r.membroId }).ok, false);
+
+  // O link do Regional: a divisao e escolhida no Aprovado.
+  const idUrso = idDe('Urso');
+  const urso = fichas().find(x => x.nomeColete === 'Urso');
+  confere('a saúde vai pra planilha; o "qual" de quem disse Não fica vazio',
+    [urso.tipoSanguineo, urso.convenio, urso.alergia, urso.alergiaQual, urso.condicao], ['Não sei', 'Nao', 'Nao', '', 'Nao']);
+  confere('do link do Regional, sem divisão, é recusado', tenta('pretendenteAprovar', { ...reg, id: idUrso }).ok, false);
+  confere('do link do Regional, pro Regional, é recusado', tenta('pretendenteAprovar', { ...reg, id: idUrso, destino: 'regional' }).ok, false);
+  confere('a Curicica NÃO aprova a do link do Regional', tenta('pretendenteAprovar', { ...cur, id: idUrso, destino: 'curicica' }).ok, false);
+  const ru = tenta('pretendenteAprovar', { ...reg, id: idUrso, destino: 'barra' });
+  confere('o Regional aprova e escolhe a Barra', [ru.ok, ru.divisao, membros().find(l => l[0] === ru.membroId)[3]], [true, 'barra', 'Barra - RJ4']);
+  const cartUrso = tenta('fichaMembro', { ...reg, membroId: ru.membroId }).ficha;
+  confere('"Não sei" deixa o tipo em branco; sem convênio e sem nada, dito assim', [cartUrso.tipoSanguineo, cartUrso.planoSaude, cartUrso.saude],
+    ['', 'Não tem', 'Nenhuma']);
+  const cartGatoAntes = fichas().find(x => x.nomeColete === 'Gato');
+  confere('a ficha de antes da Saúde vem com os campos em branco', [cartGatoAntes.tipoSanguineo, cartGatoAntes.convenio], ['', '']);
+  confere('ficha que não existe é avisada', tenta('pretendenteAprovar', { ...reg, id: 'zz' }).ok, false);
+
+  // Desistiu: a ficha some inteira.
+  const idGato = idDe('Gato');
+  confere('a Barra NÃO apaga a ficha da Curicica', tenta('pretendenteRemover', { ...bar, id: idGato }).ok, false);
+  confere('Desistiu apaga a ficha', [tenta('pretendenteRemover', { ...cur, id: idGato }).ok, fichas().some(x => x.nomeColete === 'Gato')], [true, false]);
+  confere('o CPF dele pode mandar a ficha de novo', tenta('admissaoEnviar', { ...base, divisao: 'curicica', cpf: '123.456.789-09', nomeColete: 'Gato' }).ok, true);
+
+  // Remover (aprovou sem querer): a ficha volta pra Em analise.
+  tenta('membroRemover', { ...cur, id: r.membroId });
+  const devolvida = fichas().find(x => x.nomeColete === 'Lobo');
+  confere('Remover o irmão devolve a ficha pra Em análise, sem o ID', [devolvida.situacao, devolvida.membroId, devolvida.cpf],
+    ['Em análise', '', '529.982.247-25']);
+  // Desligar: o dado pessoal nao fica pra tras.
+  tenta('membroMovimentar', { ...bar, membroId: ru.membroId, tipo: 'desligamento' });
+  confere('Desligar apaga a ficha de cadastro junto com a carteirinha', fichas().some(x => x.nomeColete === 'Urso'), false);
+  // O Registro: o nome do colete, nunca o CPF.
+  const limpo = (v) => String(v).replace(/^'/, '');
+  const anotados = (p.abas.Registro ? p.abas.Registro.dados.slice(1) : [])
+    .filter(l => /Pretendente (aprovado|desistiu)/.test(limpo(l[1])) && limpo(l[4]) === 'OK').map(l => limpo(l[3]));
+  confere('o Registro anota aprovado e desistiu', anotados,
+    ['Lobo · entrou na Curicica - RJ4 como grau X', 'Urso · entrou na Barra - RJ4 como grau X', 'Gato · ficha apagada']);
+  confere('sem CPF no Registro', (p.abas.Registro ? p.abas.Registro.dados : []).some(l => l.join(' ').includes('529.982')), false);
 }
 
 log('');
