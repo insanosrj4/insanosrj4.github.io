@@ -2,10 +2,14 @@
 
 ## App — link para mandar no grupo
 
-    https://vini04rock.github.io/Presenca-RJ4/
+    https://insanosrj4.github.io/App
 
-Atenção às maiúsculas: `P` de Presenca, `RJ4` todo maiúsculo. O endereço
-diferencia maiúscula de minúscula.
+Desde 25/11/2026 o site é da organização **insanosrj4** no GitHub (antes era
+`vini04rock.github.io/Presenca-RJ4/`, que continua funcionando: um
+repositório pequeno no lugar antigo manda cada link velho pro novo — ver
+`ferramentas/link-antigo/`). O endereço puro, `https://insanosrj4.github.io`,
+também abre o app. Escrito em minúscula (`/app`) também chega: o `404.html`
+acerta.
 
 Não precisa de conta nem instalar nada — abre no navegador do celular.
 Para virar ícone no aparelho:
@@ -20,19 +24,25 @@ Regional funciona como chave-mestra, abrindo qualquer divisão.
 
 ## Ficha de admissão e Mesa
 
-Links fora do app, na mesma pasta do site:
+Links fora do app, no mesmo site:
 
-- **Ficha do pretendente**, um por divisão:
-  `https://vini04rock.github.io/Presenca-RJ4/ficha.html?divisao=barra`
-  (troque `barra` pela chave da divisão; o app mostra todos em ADM ›
-  📝 Pretendentes).
+- **Ficha do pretendente**, um por divisão (sem acento: `Gardenia`):
+  `https://insanosrj4.github.io/Ficha-pretendentes/Barra` — também Regional,
+  Oeste, Recreio, Curicica, Taquara e Gardenia. O app mostra todos em ADM ›
+  📝 Pretendentes.
 - **Mesa**, um só pra todas as divisões:
-  `https://vini04rock.github.io/Presenca-RJ4/mesa.html`. Cada card abre com
+  `https://insanosrj4.github.io/Controle-pretendentes`. Cada card abre com
   o PIN da divisão (o mesmo do Modo organizador; o do Regional abre todas).
+
+Os endereços antigos (`ficha.html?divisao=barra`, `mesa.html`) continuam
+valendo. As páginas das pastas (`App/`, `Ficha-pretendentes/…`,
+`Controle-pretendentes/`) e o `404.html` são **geradas**: depois de mexer em
+`index.html`, `ficha.html` ou `mesa.html`, rodar `node ferramentas/paginas.mjs`
+(o `regras.mjs` avisa se esqueceu).
 
 ## Repositório
 
-    https://github.com/vini04rock/Presenca-RJ4
+    https://github.com/insanosrj4/insanosrj4.github.io
 
 O site é publicado pelo GitHub Pages a partir da branch `main`, pasta raiz.
 Todo `git push` atualiza o site no ar em cerca de 1 minuto.

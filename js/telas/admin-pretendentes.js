@@ -23,7 +23,7 @@ import { botaoGerarRelatorio } from '../ui/comuns.js';
 
 const lista = () => state.pretendentesDados || [];
 const doId = (id) => lista().find(p => p.id === id) || null;
-const link = (chave) => linkDaFicha(window.location.href, chave);
+const link = (chave) => linkDaFicha(document.baseURI, chave);
 function seloSituacao(p) {
   const s = situacaoDe(p);
   return `<span class="pret-situacao ${ehAprovado(p) ? 'aprovado' : 'analise'}">${s.emoji} ${escapeHtml(s.rotulo)}</span>`;
@@ -55,7 +55,7 @@ function cardLink() {
       <div class="painel-titulo">🗂️ Link da Mesa</div>
       <div class="pret-explica">Pros integrantes de mesa verem as fichas e lançarem no sistema do clube, sem entrar no app. Cada divisão abre com o PIN dela (o mesmo do Modo organizador).</div>
       <div class="pret-link-linha">
-        <div class="pret-link-texto"><div class="pret-link-url">${escapeHtml(linkDaMesa(window.location.href))}</div></div>
+        <div class="pret-link-texto"><div class="pret-link-url">${escapeHtml(linkDaMesa(document.baseURI))}</div></div>
         <button class="btn secondary pret-link-copiar" data-action="pretendente-copiar-link" data-value="mesa">📋 Copiar</button>
       </div>
     </div>`;
@@ -259,7 +259,7 @@ const agoraBR = () => new Date().toLocaleString('pt-BR', { day: '2-digit', month
 export const acoes = {
   'pretendente-copiar-link': async (id, target, action, e) => {
     const valor = target.dataset.value;
-    await copiarTexto(valor === 'mesa' ? linkDaMesa(window.location.href) : link(valor));
+    await copiarTexto(valor === 'mesa' ? linkDaMesa(document.baseURI) : link(valor));
   },
   'abrir-pretendente': async (id, target, action, e) => {
     state.pretendenteAberto = id;

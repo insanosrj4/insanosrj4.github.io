@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!-- Gerada por ferramentas/paginas.mjs - nao editar aqui. -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Insanos MC · Regional RJ4</title>
+<script>
+(function () {
+  var rotas = {"/app":"/App/","/controle-pretendentes":"/Controle-pretendentes/","/ficha-pretendentes/regional":"/Ficha-pretendentes/Regional/","/ficha-pretendentes/oeste":"/Ficha-pretendentes/Oeste/","/ficha-pretendentes/recreio":"/Ficha-pretendentes/Recreio/","/ficha-pretendentes/barra":"/Ficha-pretendentes/Barra/","/ficha-pretendentes/curicica":"/Ficha-pretendentes/Curicica/","/ficha-pretendentes/taquara":"/Ficha-pretendentes/Taquara/","/ficha-pretendentes/gardenia":"/Ficha-pretendentes/Gardenia/"};
+  var p = location.pathname;
+  try { p = decodeURIComponent(p); } catch (e) {}
+  p = p.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\/+$/, '');
+  var destino = rotas[p];
+  if (destino) location.replace(destino + location.search + location.hash);
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/estilo.css">
+</head>
+<body>
+<div id="app">
+  <div class="crest-wrap">
+    <img src="/img/logo.webp" alt="Insanos MC">
+    <h1>Página não encontrada</h1>
+    <div class="sub">Confira o link que você recebeu.</div>
+  </div>
+  <div class="card"><a class="btn block" href="/App/">Abrir o app</a></div>
+</div>
+</body>
+</html>

@@ -37,6 +37,33 @@ Três modos de entrada, todos no mesmo link:
   cache. Sem isso o navegador mistura arquivos novos com antigos e uma
   mudança pode simplesmente não aparecer, sem erro nenhum.
 
+### Os endereços (25/11/2026)
+
+O site mudou da conta pessoal (`vini04rock.github.io/Presenca-RJ4/`) pra
+organização **insanosrj4** no GitHub, repositório `insanosrj4.github.io`, com
+endereços limpos escolhidos pelo Social Regional:
+
+| | Endereço |
+|---|---|
+| App | `insanosrj4.github.io/App` (a raiz também abre o app) |
+| Ficha | `insanosrj4.github.io/Ficha-pretendentes/Barra` (uma pasta por divisão, sem acento) |
+| Mesa | `insanosrj4.github.io/Controle-pretendentes` |
+
+- Cada endereço é uma **pasta com um `index.html` gerado** por
+  `ferramentas/paginas.mjs` a partir de `index.html`, `ficha.html` e
+  `mesa.html`: a mesma página com `<base href="/">`, pra `css/`, `js/` e
+  `img/` serem achados na raiz. A ficha tira a divisão do nome da pasta
+  (`divisaoDaPasta`). O `regras.mjs` acusa cópia desatualizada.
+- O **`404.html`** (também gerado) leva o endereço escrito em minúscula, sem
+  acento ou com barra no fim pro certo.
+- Os links que o app mostra (ficha e Mesa, no card 📝 Pretendentes) saem do
+  `document.baseURI` (`linkDaFicha`/`linkDaMesa`, em `dominio/admissao.js`).
+- Os **endereços antigos continuam**: `ficha.html?divisao=…` e `mesa.html`
+  no site novo, e o site velho é um repositório pequeno em
+  `vini04rock/Presenca-RJ4` com só a página de `ferramentas/link-antigo/`,
+  que manda cada link velho pro novo.
+- Os dados não mudaram de lugar: planilha e Code.gs são os mesmos.
+
 ### A hierarquia dos módulos
 
 Cada camada só pode depender das de baixo. É isso que impede que mexer numa

@@ -15,11 +15,14 @@
 import { escoposNaOrdemOficial } from './nucleo/config.js';
 import { escapeHtml, mascaraData, dataISOdeBR, hojeISO } from './nucleo/util.js';
 import { apiPost } from './nucleo/api.js';
-import { PARTES_FICHA, CAMPOS_FICHA, MATERIAIS_COLETE, OBSERVACOES_ADMISSAO, nomeDivisaoAdmissao,
+import { PARTES_FICHA, CAMPOS_FICHA, MATERIAIS_COLETE, OBSERVACOES_ADMISSAO, divisaoDaPasta, nomeDivisaoAdmissao,
   mascaraCpf, mascaraCep, mascaraTelefone, campoVisivel, conferirFicha, fichaParaEnvio } from './dominio/admissao.js';
 
 const raiz = document.getElementById('app');
-const chaveDivisao = new URLSearchParams(location.search).get('divisao') || '';
+// A divisao vem do endereco: o limpo (/Ficha-pretendentes/Barra, a pasta) ou
+// o antigo (ficha.html?divisao=barra), que continua valendo.
+const pastaDoEndereco = location.pathname.replace(/\/+$/, '').split('/').pop();
+const chaveDivisao = new URLSearchParams(location.search).get('divisao') || divisaoDaPasta(pastaDoEndereco);
 const divisao = escoposNaOrdemOficial().find(e => e.chave === chaveDivisao) || null;
 const nomeDivisao = divisao ? nomeDivisaoAdmissao(divisao.chave) : '';
 

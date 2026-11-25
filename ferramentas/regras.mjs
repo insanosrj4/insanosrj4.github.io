@@ -1969,10 +1969,18 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
     { ...pr('c', 'Em análise', '17/11/2026 09:00'), divisao: 'oeste' }];
   confere('mesa: a divisão vê só as dela que esperam, sem os aprovados', A.pretendentesDaMesa(fm, 'barra').map(x => x.id), ['a']);
   confere('mesa: o Regional vê as de todas, sem os aprovados', A.pretendentesDaMesa(fm, 'regional').map(x => x.id), ['c', 'a']);
-  confere('mesa: o link', A.linkDaMesa('https://x.github.io/Presenca-RJ4/index.html'), 'https://x.github.io/Presenca-RJ4/mesa.html');
+  confere('mesa: o link limpo', A.linkDaMesa('https://insanosrj4.github.io/'), 'https://insanosrj4.github.io/Controle-pretendentes');
   confere('o "Novo" saiu: situação desconhecida aparece como Em análise', A.situacaoDe({ situacao: 'Novo' }).rotulo, 'Em análise');
-  confere('o link de cada divisão', [A.linkDaFicha('https://x.github.io/Presenca-RJ4/index.html', 'curicica'), A.linkDaFicha('', 'barra')],
-    ['https://x.github.io/Presenca-RJ4/ficha.html?divisao=curicica', 'ficha.html?divisao=barra']);
+  confere('o link limpo de cada divisão', [A.linkDaFicha('https://insanosrj4.github.io/', 'curicica'), A.linkDaFicha('https://insanosrj4.github.io/', 'gardenia'), A.linkDaFicha('', 'barra')],
+    ['https://insanosrj4.github.io/Ficha-pretendentes/Curicica', 'https://insanosrj4.github.io/Ficha-pretendentes/Gardenia', 'Ficha-pretendentes/Barra']);
+  confere('a pasta vira a divisão, de qualquer jeito que for escrita',
+    ['Barra', 'barra', 'BARRA', 'Gard%C3%AAnia', 'Gardênia', 'gardenia', 'Regional', 'ficha.html', ''].map(A.divisaoDaPasta),
+    ['barra', 'barra', 'barra', 'gardenia', 'gardenia', 'gardenia', 'regional', '', '']);
+  confere('toda divisão tem pasta', (await import(url('nucleo/config.js'))).escoposNaOrdemOficial().every(e => A.pastaDaDivisao(e.chave)), true);
+  // As copias das pastas (App, Ficha-pretendentes, Controle-pretendentes) e o
+  // 404 saem de index/ficha/mesa.html: mexeu numa, roda o gerador.
+  const P = await import(pathToFileURL(path.join(AQUI, 'paginas.mjs')).href);
+  confere('as páginas dos endereços limpos estão em dia (senão: node ferramentas/paginas.mjs)', P.paginasDesatualizadas(), []);
   confere('o nome da divisão', [A.nomeDivisaoAdmissao('gardenia'), A.nomeDivisaoAdmissao('regional')], ['Divisão Gardênia', 'Regional RJ4']);
   const texto = A.textoFichaAdmissao({ ...completa, divisao: 'curicica', situacao: 'Em análise', enviadoEm: '14/11/2026 10:00',
     pagamento: 'Parcelado', parcelas: '4', carro: 'Nao' }).split('\n');

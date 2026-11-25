@@ -256,16 +256,42 @@ export function nomeDivisaoAdmissao(chave) {
   return `Divisão ${escopoPorChave(chave).nome.replace(' - RJ4', '')}`;
 }
 
-// O link da ficha de uma divisao, a partir do endereco do app (funciona no
-// servidor local e no GitHub Pages sem mudar nada).
-export function linkDaFicha(enderecoDoApp, chave) {
-  const caminho = `ficha.html?divisao=${encodeURIComponent(chave)}`;
-  try { return new URL(caminho, enderecoDoApp).href; } catch (e) { return caminho; }
+// Os enderecos limpos (25/11/2026, no site insanosrj4.github.io):
+//   /App                         - o app (a raiz tambem abre o app)
+//   /Ficha-pretendentes/Barra    - a ficha de cada divisao
+//   /Controle-pretendentes       - a pagina da Mesa
+// Cada um e uma pasta com um index.html gerado por ferramentas/paginas.mjs
+// a partir de index.html, ficha.html e mesa.html. O 404.html faz o mesmo
+// endereco em minuscula ou sem acento cair no lugar certo. Os antigos
+// (ficha.html?divisao=barra, mesa.html) continuam funcionando.
+export const CAMINHO_APP = 'App';
+export const CAMINHO_FICHAS = 'Ficha-pretendentes';
+export const CAMINHO_MESA = 'Controle-pretendentes';
+// A pasta de cada divisao: o nome, sem acento (acento em link costuma
+// quebrar quando passa pelo WhatsApp).
+const PASTAS_DIVISAO = {
+  regional: 'Regional', oeste: 'Oeste', recreio: 'Recreio', barra: 'Barra',
+  curicica: 'Curicica', taquara: 'Taquara', gardenia: 'Gardenia',
+};
+export const pastaDaDivisao = (chave) => PASTAS_DIVISAO[chave] || '';
+// O contrario: 'Barra', 'barra', 'BARRA' ou 'Gardênia' -> a chave; '' se nao e divisao.
+export function divisaoDaPasta(texto) {
+  let t = String(texto || '');
+  try { t = decodeURIComponent(t); } catch (e) { /* fica como veio */ }
+  t = t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  return Object.keys(PASTAS_DIVISAO).find(chave => PASTAS_DIVISAO[chave].toLowerCase() === t) || '';
 }
 
-// O link da pagina da Mesa (mesa.html, 25/11/2026): um so pra todo mundo.
-export function linkDaMesa(enderecoDoApp) {
-  try { return new URL('mesa.html', enderecoDoApp).href; } catch (e) { return 'mesa.html'; }
+// O link da ficha de uma divisao. `base` e o endereco da raiz do site (o
+// document.baseURI do app: as paginas das pastas tem <base href="/">).
+export function linkDaFicha(base, chave) {
+  const caminho = `${CAMINHO_FICHAS}/${pastaDaDivisao(chave)}`;
+  try { return new URL(caminho, base).href; } catch (e) { return caminho; }
+}
+
+// O link da pagina da Mesa (25/11/2026): um so pra todo mundo.
+export function linkDaMesa(base) {
+  try { return new URL(CAMINHO_MESA, base).href; } catch (e) { return CAMINHO_MESA; }
 }
 
 // As fichas que a mesa de uma divisao ve: so as que esperam (os aprovados
