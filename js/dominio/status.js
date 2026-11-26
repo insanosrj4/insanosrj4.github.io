@@ -1,7 +1,8 @@
 // As regras de status de presenca (inclusive Aguardando virar Infracional).
 
-import { STATUS } from '../nucleo/config.js';
+import { STATUS, escopoPorChave } from '../nucleo/config.js';
 import { state } from '../nucleo/estado.js';
+import { ordenarPorHierarquia } from '../nucleo/util.js';
 
 // Nao responder a convocacao e falta igual a uma falta sem justificativa
 // (decisao do clube) - so faz sentido continuar "Aguardando" enquanto o
@@ -34,14 +35,27 @@ export function computeCounts(ev) {
   return counts;
 }
 
+// A ordem dos nomes no relatorio de presenca de um evento (26/11/2026, pedido
+// do Social Regional): os do Regional primeiro, e depois os irmaos das
+// divisoes, todos juntos, na ordem hierarquica (grau, cargo nos graus VI e
+// V, nome - ordenarPorHierarquia). Ate ali saiam na ordem da convocacao.
+export function ordemDoRelatorio(membros) {
+  const regional = escopoPorChave('regional').nome;
+  const doRegional = membros.filter(m => m.divisao === regional);
+  const dasDivisoes = membros.filter(m => m.divisao !== regional);
+  return ordenarPorHierarquia(doRegional).concat(ordenarPorHierarquia(dasDivisoes));
+}
+
+// Como o nome sai no relatorio: com o grau ao lado, "Bull (VI)".
+export const nomeNoRelatorio = (m) => (m.grau ? `${m.nome} (${m.grau})` : m.nome);
+
 export function getReportGroups(ev) {
   const statusData = state.reportData[ev.id] || {};
   const groups = Object.fromEntries(Object.keys(STATUS).map(k => [k, []]));
-  ev.memberIds.forEach(mid => {
-    const m = state.roster.find(r => r.id === mid);
-    if (!m) return;
-    const s = statusEfetivo(ev, (statusData[mid] && statusData[mid].status) || 'aguardando');
-    (groups[s] || groups.aguardando).push(m.nome);
+  const convocados = ev.memberIds.map(mid => state.roster.find(r => r.id === mid)).filter(Boolean);
+  ordemDoRelatorio(convocados).forEach(m => {
+    const s = statusEfetivo(ev, (statusData[m.id] && statusData[m.id].status) || 'aguardando');
+    (groups[s] || groups.aguardando).push(nomeNoRelatorio(m));
   });
   return groups;
 }

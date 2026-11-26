@@ -765,12 +765,42 @@ log('=== relatório parcial: evento aberto não dá falta ===');
   const parcial = buildReportText(evAberto).split('\n');
   confere('aberto sai como parcial', parcial[0], '📋 RELATÓRIO PARCIAL DE PRESENÇA');
   confere('quem não respondeu fica em "ainda não responderam"',
-    parcial.slice(parcial.indexOf('⚠️ AINDA NÃO RESPONDERAM (2)') + 1), ['- Raposo', '- Costa']);
+    parcial.slice(parcial.indexOf('⚠️ AINDA NÃO RESPONDERAM (2)') + 1), ['- Costa (VI)', '- Raposo (VI)']);
   confere('sem falta no aberto', parcial.some(l => l.startsWith('⭕')), false);
   const final = buildReportText({ ...evAberto, status: 'encerrado' }).split('\n');
   confere('encerrado continua igual: quem não respondeu vira falta',
     [final[0], final.includes('⭕ FALTA NÃO JUSTIFICADA (2)'), final.some(l => l.startsWith('⚠️'))],
     ['📋 RELATÓRIO DE PRESENÇA', true, false]);
+}
+
+log('');
+log('=== relatório do evento: regionais no topo, depois as divisões por hierarquia ===');
+{
+  // Pedido do Social Regional (26/11/2026): ate ali os nomes saiam na ordem da
+  // convocacao. Agora o Regional primeiro e depois todos das divisoes juntos,
+  // do grau mais alto pro mais baixo, com o grau ao lado do nome.
+  const S = await import(url('dominio/status.js'));
+  const { buildReportText } = await import(url('dominio/relatorio-texto.js'));
+  const gente = [
+    { id: 'r1', nome: 'Zeca', grau: 'V', cargo: 'Operacional', divisao: 'Regional RJ4' },
+    { id: 'b1', nome: 'Urso', grau: 'VIII', cargo: '', divisao: 'Barra - RJ4' },
+    { id: 'o1', nome: 'Lobo', grau: 'VI', cargo: 'Diretor', divisao: 'Oeste - RJ4' },
+    { id: 'r2', nome: 'Abel', grau: 'V', cargo: 'Diretor Regional', divisao: 'Regional RJ4' },
+    { id: 'c1', nome: 'Gato', grau: 'X', cargo: '', divisao: 'Curicica - RJ4' },
+    { id: 'b2', nome: 'Bull', grau: 'VI', cargo: 'Diretor', divisao: 'Barra - RJ4' },
+    { id: 'g1', nome: 'Tigre', grau: 'IV', cargo: '', divisao: 'Gardênia - RJ4' },
+  ];
+  confere('Regional primeiro (Diretor Regional antes do Operacional), depois as divisões juntas por grau',
+    S.ordemDoRelatorio(gente).map(m => m.nome), ['Abel', 'Zeca', 'Tigre', 'Bull', 'Lobo', 'Urso', 'Gato']);
+  confere('o nome sai com o grau; sem grau, só o nome', [S.nomeNoRelatorio(gente[5]), S.nomeNoRelatorio({ nome: 'Novo', grau: '' })], ['Bull (VI)', 'Novo']);
+  const rosterAntes = st.roster;
+  st.roster = gente;
+  st.reportData = { y: Object.fromEntries(gente.map(m => [m.id, { status: m.id === 'c1' ? 'familia' : 'confirmado' }])) };
+  const texto = buildReportText({ id: 'y', nome: 'Bonde', data: '2026-11-20', categoria: 'regional', status: 'encerrado', memberIds: gente.map(m => m.id) }).split('\n');
+  confere('no texto do WhatsApp', texto.slice(texto.indexOf('✅ CONFIRMARAM (6)') + 1, texto.indexOf('✅ CONFIRMARAM (6)') + 7),
+    ['- Abel (V)', '- Zeca (V)', '- Tigre (IV)', '- Bull (VI)', '- Lobo (VI)', '- Urso (VIII)']);
+  confere('e nos que não puderam ir, com o motivo', texto.includes('- Gato (X) (Família)'), true);
+  st.roster = rosterAntes;
 }
 
 log('');

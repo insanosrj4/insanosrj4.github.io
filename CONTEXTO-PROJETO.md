@@ -435,6 +435,14 @@ evento) e **🖼️ Gerar imagem** (`imagemResultadoEvento`, que num evento
 aberto vira "PARCIAL DO EVENTO", com a fatia cinza de Aguardando em vez de
 somar quem não respondeu às faltas).
 
+**A ordem dos nomes no relatório de um evento** (26/11/2026, pedido do Social
+Regional): os do Regional primeiro e depois os irmãos das divisões, todos
+juntos, na ordem hierárquica (grau, cargo no VI e no V, nome), com o grau ao
+lado do nome: "Bull (VI)". Vale na tela (Gerar relatório e Encerrados), no
+📋 WhatsApp e no 📄 PDF, que saem todos de `getReportGroups`
+(`ordemDoRelatorio`/`nomeNoRelatorio`, em `dominio/status.js`). Até ali saía
+na ordem da convocação. A imagem não leva nomes.
+
 **Percentual de presença** — só conta evento **encerrado** (um evento aberto
 ainda pode mudar), e só conta membro que estava convidado, isto é, que tem
 linha em `Presencas`. Assim quem entrou no clube depois não é penalizado por
