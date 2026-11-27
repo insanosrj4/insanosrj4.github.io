@@ -22,7 +22,7 @@ import { renderAdminEstoqueAdm } from './admin-estoque-adm.js';
 import { renderAdminAcoesSociais } from './admin-acoes-sociais.js';
 import { renderAdminPainelSocial } from './admin-painel-social.js';
 import { renderAdminPretendentes } from './admin-pretendentes.js';
-import { fecharCarteirinha, renderAdminCarteirinhas } from './admin-carteirinha.js';
+import { carregarCadastroLink, fecharCarteirinha, renderAdminCarteirinhas } from './admin-carteirinha.js';
 import { fecharFuncoesEspeciais, podeDescartar, renderAdminFuncoesEspeciais, tituloFuncaoEspecial } from './admin-funcoes-especiais.js';
 
 // As secoes do organizador. Cada card do menu abre uma secao, e a barra de
@@ -271,6 +271,8 @@ export async function abrirAbaOrganizador(aba) {
   if (aba.startsWith('movimentos') && (entrandoNaSecao || !state.movimentosDados)) await carregarMovimentos();
   if (aba.startsWith('estoque-adm') && entrandoNaSecao) await carregarEstoqueAdm();
   if (aba === 'pretendentes' && entrandoNaSecao) await carregarPretendentes();
+  // O link Atualizar-cadastro (27/11/2026): como esta, a cada entrada na aba.
+  if (aba === 'carteirinhas' && state.adminEscopo === 'regional') await carregarCadastroLink();
   if (aba.startsWith('acoes-sociais') && entrandoNaSecao) await carregarAcoesSociais();
   // Os eventos de novo: as divisoes marcam Acao Social com o app aberto.
   if (aba.startsWith('painel-social') && entrandoNaSecao) {

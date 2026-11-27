@@ -5,8 +5,9 @@
 //
 // So as gravacoes estao aqui: uma leitura que falha (carregar uma lista) ja
 // tem o aviso da propria tela, e varias rodam sozinhas, sem ninguem ter
-// tocado em nada. A ficha do pretendente (admissaoEnviar) fica de fora: a
-// pagina dela ja mostra o erro no formulario.
+// tocado em nada. A ficha do pretendente (admissaoEnviar) e o link
+// Atualizar-cadastro (cadastroCompletar) ficam de fora: a pagina de cada um
+// ja mostra o erro no formulario.
 //
 // O texto completa "Não foi possível ...".
 const O_QUE = {
@@ -56,6 +57,7 @@ const O_QUE = {
   pretendenteAprovar: 'aprovar o pretendente',
   pretendenteRemover: 'apagar a ficha',
   pretendenteEditar: 'salvar a correção da ficha',
+  cadastroLinkSalvar: p => (p && String(p.aberto) === 'true' ? 'abrir o link Atualizar-cadastro' : 'fechar o link Atualizar-cadastro'),
 };
 
 export function ehGravacaoComAviso(action) { return Object.prototype.hasOwnProperty.call(O_QUE, action); }

@@ -298,6 +298,12 @@ export let state = {
   // No Regional, as divisoes abertas na lista de Carteirinhas.
   carteirinhasDivisoesAbertas: new Set(),
   carteirinhaFotoProcessando: false,
+  // O link Atualizar-cadastro (27/11/2026), no topo das Carteirinhas do
+  // Regional: null = ainda nao buscado; { aberto, total, completos }.
+  cadastroLink: null,
+  cadastroLinkCarregando: false,
+  cadastroLinkErro: null,
+  cadastroLinkSalvando: false,
   aniversarios: null,
   aniversariosEscopo: null,
   acoesSociaisDados: null,

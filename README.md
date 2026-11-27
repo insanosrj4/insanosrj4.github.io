@@ -38,7 +38,8 @@ Sirva a pasta e acesse `http://localhost:8765`:
     ├── index.html            só o esqueleto: <head>, #app e o <script>
     ├── ficha.html            a Ficha de Admissão (link do pretendente)
     ├── mesa.html             a Mesa: os pretendentes pra mesa de cada divisão
-    ├── App/, Ficha-pretendentes/, Controle-pretendentes/, 404.html
+    ├── cadastro.html         Atualizar-cadastro: o irmão completa a carteirinha
+    ├── App/, Ficha-pretendentes/, Controle-pretendentes/, Atualizar-cadastro/, 404.html
     │                         os endereços limpos, GERADOS por ferramentas/paginas.mjs
     ├── css/estilo.css        todo o visual
     ├── img/                  as artes dos cards, a logo e o fundo
@@ -70,10 +71,10 @@ Quatro testes que rodam offline, sem tocar na planilha:
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # regras do clube: hierarquia, chamada, cobrança
-    node ferramentas/telas.mjs      # desenha as 244 telas e abas
+    node ferramentas/telas.mjs      # desenha as 394 telas e abas
     node ferramentas/planilha.mjs   # o Code.gs contra uma planilha de mentira
 
-Mexeu em `index.html`, `ficha.html` ou `mesa.html`? Rode antes
+Mexeu em `index.html`, `ficha.html`, `mesa.html` ou `cadastro.html`? Rode antes
 `node ferramentas/paginas.mjs`, que refaz as páginas dos endereços limpos.
 
 Detalhes e o que eles não cobrem: [ferramentas/README.md](ferramentas/README.md).

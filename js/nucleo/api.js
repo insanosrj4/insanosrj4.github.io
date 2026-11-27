@@ -47,6 +47,8 @@ const ACOES_PROTEGIDAS = [
   'pretendentes', 'pretendenteSituacao', 'pretendenteAprovar', 'pretendenteRemover', 'pretendenteEditar', 'fichaCadastro',
   // O Registro (17/11/2026): so o Regional le.
   'registro',
+  // O liga/desliga do link Atualizar-cadastro (27/11/2026): so o Regional.
+  'cadastroLinkSalvar',
 ];
 
 // Anexa escopo+PIN quando a acao exige. Some do caminho nas demais, pra

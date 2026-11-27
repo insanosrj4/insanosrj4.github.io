@@ -159,6 +159,7 @@ function carregaCodeGs(planilhaFalsa, propriedades) {
       getScriptProperties: () => ({
         getProperty: (k) => (propriedades && propriedades[k] !== undefined ? propriedades[k] : null),
         setProperty(k, v) { if (propriedades) propriedades[k] = v; },
+        deleteProperty(k) { if (propriedades) delete propriedades[k]; },
       }),
     },
     ContentService: { createTextOutput: () => ({ setMimeType: () => ({}) }), MimeType: {} },
@@ -423,9 +424,10 @@ log('=== permissao: quem pode gravar na planilha ===');
     const fonte = fs.readFileSync(CODE_GS, 'utf8');
     const { contexto } = monta();
     const gravam = [...fonte.matchAll(/if \(action === '([a-zA-Z]+)'\) return comTrava/g)].map(m => m[1]);
-    // As duas gravacoes publicas de proposito: a presenca e a ficha do
-    // pretendente (quem preenche e de fora do clube, nao tem PIN).
-    const PUBLICAS = ['presenca', 'admissaoEnviar'];
+    // As gravacoes publicas de proposito: a presenca, a ficha do pretendente
+    // (quem preenche e de fora do clube, nao tem PIN) e o link
+    // Atualizar-cadastro (o irmao completa a propria carteirinha, so campo vazio).
+    const PUBLICAS = ['presenca', 'admissaoEnviar', 'cadastroCompletar'];
     const desprotegidas = gravam.filter(a => !PUBLICAS.includes(a) && !contexto.ACOES_PROTEGIDAS.includes(a));
     confere('toda acao que grava esta na lista (menos presenca e a ficha de admissao)', desprotegidas, []);
   }
@@ -2075,6 +2077,80 @@ log('=== o Registro (tudo que grava, com data e hora) ===');
     [velho(89), 'Presença', 'Sem PIN', 'nova', 'OK', '', '']);
   confere('a madrugada apaga o que tem mais de 90 dias', contexto.limparRegistroAntigo(), 2);
   confere('e fica o resto', p.abas.Registro.dados[1][3], 'nova');
+}
+
+log('');
+log('=== link Atualizar-cadastro: o irmão completa só o que falta, sem ver nada ===');
+{
+  const p = montaPlanilha([], []);
+  p.abas.Membros = novaAba('Membros', [['ID', 'Nome', 'Grau', 'Divisao', 'Funcoes', 'Cargo', 'Situacao', 'Situacao Desde', 'Entrada', 'Grau a Confirmar'],
+    ['m1', 'Costa', 'VI', 'Barra - RJ4', '', 'Diretor', '', '', '2024-12-05', ''],
+    ['m2', 'Bull', 'X', 'Barra - RJ4', '', '', '', '', '', ''],
+    ['o9', 'Fabiano', 'IX', 'Oeste - RJ4', '', '', '', '', '', ''],
+    ['x1', 'Fora', 'X', 'Outra Regional', '', '', '', '', '', '']]);
+  const props = { PIN_REGIONAL: '0418', PIN_BARRA: '1801' };
+  const { contexto } = carregaCodeGs(p, props);
+  const tenta = (acao, params) => { try { return contexto.executar(acao, params); } catch (e) { return { ok: false, erro: e.message }; } };
+  const foto = 'data:image/jpeg;base64,' + 'B'.repeat(50);
+  // A carteirinha do Costa ja tem telefone, plano e foto; o Bull nao tem nenhuma.
+  contexto.executar('fichaMembroSalvar', { escopo: 'barra', pin: '1801', membroId: 'm1', telefone: '(21) 99999-0000',
+    planoSaude: 'Unimed', foto });
+  const completo = { membroId: 'm2', nomeCompleto: ' Paulo  Bull ', telefone: '21988887777', nascimento: '1980-02-10',
+    entrada: '2020-03-01', emergenciaNome: 'Ana', emergenciaParentesco: 'Esposa', emergenciaTelefone: '2133334444',
+    tipoSanguineo: 'A+', convenio: 'Nao', alergia: 'Sim', alergiaQual: 'Dipirona', condicao: 'Nao', site: '' };
+
+  confere('o liga/desliga pede o PIN do Regional', [tenta('cadastroLinkSalvar', { aberto: true }).ok,
+    tenta('cadastroLinkSalvar', { escopo: 'barra', pin: '1801', aberto: true }).ok], [false, false]);
+  confere('fechado (o começo): a lista não vem', tenta('cadastroLista', {}), { ok: true, aberto: false });
+  confere('fechado: nada grava', [tenta('cadastroCompletar', completo).ok, p.abas.MembrosFicha.dados.length - 1], [false, 1]);
+  confere('o Regional abre', tenta('cadastroLinkSalvar', { escopo: 'regional', pin: '0418', aberto: true }), { ok: true, aberto: true });
+
+  const lista = tenta('cadastroLista', {});
+  confere('aberto: só os irmãos da RJ4 (quem é de fora não aparece)', lista.membros.map(m => m.id), ['m1', 'm2', 'o9']);
+  const costa = lista.membros[0];
+  confere('o Costa: falta só o que está em branco (telefone, plano e ingresso já tem)', costa.falta,
+    ['nomeCompleto', 'nascimento', 'emergenciaNome', 'emergenciaParentesco', 'emergenciaTelefone', 'tipoSanguineo', 'saude']);
+  confere('a lista não leva nenhum dado da carteirinha', JSON.stringify(lista).match(/9999|Unimed|base64/), null);
+  confere('o Bull: falta tudo', lista.membros[1].falta.length, 10);
+
+  const r = tenta('cadastroCompletar', completo);
+  confere('o Bull completa tudo, sem PIN', [r.ok, r.gravados.length, r.falta], [true, 10, []]);
+  const l = p.abas.MembrosFicha.dados.find(x => x[0] === 'm2');
+  confere('grava no formato da carteirinha', [l[1], l[4], l[5], l[6], l[7], l[10], l[11]],
+    ['(21) 98888-7777', '(21) 3333-4444', '1980-02-10', 'A+', 'Alergia: Dipirona', 'Paulo Bull', 'Não tem']);
+  confere('a data de ingresso vai pro cadastro', p.abas.Membros.dados.find(x => x[0] === 'm2')[8], '2020-03-01');
+
+  const r2 = tenta('cadastroCompletar', { ...completo, membroId: 'm1', telefone: '21900001111', convenio: 'Sim', convenioQual: 'Amil', entrada: '2019-01-01' });
+  const l1 = p.abas.MembrosFicha.dados.find(x => x[0] === 'm1');
+  confere('no Costa, o que já tinha fica (telefone, plano, foto e ingresso)', [l1[1], l1[11], l1[8], p.abas.Membros.dados.find(x => x[0] === 'm1')[8]],
+    ['(21) 99999-0000', 'Unimed', foto, '2024-12-05']);
+  confere('e só o vazio entra', [r2.gravados, l1[6], l1[7]],
+    [['nomeCompleto', 'nascimento', 'emergenciaNome', 'emergenciaParentesco', 'emergenciaTelefone', 'tipoSanguineo', 'saude'], 'A+', 'Alergia: Dipirona']);
+  confere('mandar de novo não troca nada', [tenta('cadastroCompletar', { ...completo, nomeCompleto: 'Outro Nome' }).gravados, l[10]], [[], 'Paulo Bull']);
+  confere('uma linha só por irmão', p.abas.MembrosFicha.dados.length - 1, 2);
+
+  const o = (extra) => tenta('cadastroCompletar', { membroId: 'o9', ...extra });
+  confere('telefone sem DDD é recusado', o({ telefone: '99998888' }).ok, false);
+  confere('nascimento no futuro é recusado', o({ nascimento: daquiA(5) }).ok, false);
+  confere('ingresso no futuro é recusado', o({ entrada: daquiA(5) }).ok, false);
+  confere('tipo sanguíneo inventado é recusado', o({ tipoSanguineo: 'Z+' }).ok, false);
+  confere('alergia "Sim" sem dizer qual é recusada', o({ alergia: 'Sim', condicao: 'Nao' }).ok, false);
+  confere('irmão que não existe é recusado', tenta('cadastroCompletar', { membroId: 'zzz', telefone: '21988887777' }).ok, false);
+  confere('irmão de fora da RJ4 é recusado', tenta('cadastroCompletar', { membroId: 'x1', telefone: '21988887777' }).ok, false);
+  confere('nada foi gravado pro Fabiano', p.abas.MembrosFicha.dados.some(x => x[0] === 'o9'), false);
+  confere('alergia e condição "Não": vira "Nenhuma"', [o({ alergia: 'Nao', condicao: 'Nao' }).ok,
+    p.abas.MembrosFicha.dados.find(x => x[0] === 'o9')[7]], [true, 'Nenhuma']);
+  confere('o campo-isca finge que recebeu e não grava', [o({ site: 'http://spam', telefone: '21988887777' }).ok,
+    p.abas.MembrosFicha.dados.find(x => x[0] === 'o9')[1]], [true, '']);
+
+  // O Registro: quem e quais campos - nunca o valor.
+  contexto.executarERegistrar('cadastroCompletar', { membroId: 'o9', telefone: '21977776666' });
+  const reg = p.abas.Registro.dados[p.abas.Registro.dados.length - 1];
+  confere('o Registro diz o irmão e o campo, sem o número', [reg[1], reg[2], reg[3]], ['Carteirinha pelo link', 'Sem PIN · link Atualizar-cadastro', 'Fabiano · telefone']);
+
+  confere('o Regional fecha', tenta('cadastroLinkSalvar', { escopo: 'regional', pin: '0418', aberto: false }).aberto, false);
+  confere('fechado de novo: a lista some e a gravação é recusada', [tenta('cadastroLista', {}).aberto,
+    tenta('cadastroCompletar', { membroId: 'o9', nascimento: '1990-01-01' }).ok], [false, false]);
 }
 
 log('');

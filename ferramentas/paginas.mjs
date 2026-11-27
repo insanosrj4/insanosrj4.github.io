@@ -3,6 +3,8 @@
 //   App/index.html                        <- index.html  (o app)
 //   Ficha-pretendentes/<Divisao>/index.html <- ficha.html (uma por divisao)
 //   Controle-pretendentes/index.html      <- mesa.html   (a pagina da Mesa)
+//   Atualizar-cadastro/index.html         <- cadastro.html (o irmao completa a
+//                                            carteirinha, 27/11/2026)
 //   404.html                              <- o endereco em minuscula, sem
 //                                            acento ou com barra no fim cai
 //                                            no lugar certo
@@ -11,7 +13,7 @@
 // css/, js/ e img/ sao achados na raiz do site, de dentro de qualquer pasta.
 // A divisao da ficha sai do nome da pasta (divisaoDaPasta, em ficha.js).
 //
-// Rodar depois de mexer em index.html, ficha.html ou mesa.html:
+// Rodar depois de mexer em index.html, ficha.html, mesa.html ou cadastro.html:
 //     node ferramentas/paginas.mjs
 // O regras.mjs confere que as copias estao em dia com as originais.
 
@@ -25,6 +27,7 @@ const SITE = 'https://insanosrj4.github.io';
 
 const A = await import(pathToFileURL(path.join(RAIZ, 'js', 'dominio', 'admissao.js')).href);
 const C = await import(pathToFileURL(path.join(RAIZ, 'js', 'nucleo', 'config.js')).href);
+const K = await import(pathToFileURL(path.join(RAIZ, 'js', 'dominio', 'cadastro-link.js')).href);
 
 const ler = (nome) => fs.readFileSync(path.join(RAIZ, nome), 'utf8').replace(/\r\n/g, '\n');
 
@@ -42,7 +45,8 @@ function copia(original, nomeOriginal, caminho) {
 // acento, maiuscula e a barra do fim e, se for um dos enderecos limpos, manda
 // pro certo (com o ?... e o #... de antes). Senao, diz que nao achou.
 function pagina404() {
-  const rotas = { [`/${A.CAMINHO_APP.toLowerCase()}`]: `/${A.CAMINHO_APP}/`, [`/${A.CAMINHO_MESA.toLowerCase()}`]: `/${A.CAMINHO_MESA}/` };
+  const rotas = { [`/${A.CAMINHO_APP.toLowerCase()}`]: `/${A.CAMINHO_APP}/`, [`/${A.CAMINHO_MESA.toLowerCase()}`]: `/${A.CAMINHO_MESA}/`,
+    [`/${K.CAMINHO_CADASTRO.toLowerCase()}`]: `/${K.CAMINHO_CADASTRO}/` };
   C.escoposNaOrdemOficial().forEach(e => {
     const pasta = A.pastaDaDivisao(e.chave);
     rotas[`/${A.CAMINHO_FICHAS.toLowerCase()}/${pasta.toLowerCase()}`] = `/${A.CAMINHO_FICHAS}/${pasta}/`;
@@ -126,6 +130,7 @@ export function gerarPaginas() {
   const paginas = [
     { caminho: `${A.CAMINHO_APP}/index.html`, conteudo: copia('index.html', 'index.html', A.CAMINHO_APP) },
     { caminho: `${A.CAMINHO_MESA}/index.html`, conteudo: copia('mesa.html', 'mesa.html', A.CAMINHO_MESA) },
+    { caminho: `${K.CAMINHO_CADASTRO}/index.html`, conteudo: copia('cadastro.html', 'cadastro.html', K.CAMINHO_CADASTRO) },
   ];
   C.escoposNaOrdemOficial().forEach(e => {
     const pasta = `${A.CAMINHO_FICHAS}/${A.pastaDaDivisao(e.chave)}`;

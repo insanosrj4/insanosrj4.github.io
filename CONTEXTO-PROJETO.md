@@ -27,7 +27,7 @@ Três modos de entrada, todos no mesmo link:
 - HTML + CSS + JavaScript puro, em **módulos ES nativos**. Sem framework,
   sem build step, sem dependências além das fontes do Google.
 - `index.html` é só o esqueleto; o visual em `css/estilo.css`; o código em
-  `js/`, repartido em 55 módulos.
+  `js/`, repartido em 76 módulos.
 - Hospedado no GitHub Pages (estático). Todo `git push` atualiza o site.
 - Backend: planilha do Google Sheets via Apps Script publicado como Web App.
   A URL fica em `API_URL`, em `js/nucleo/api.js`.
@@ -48,10 +48,11 @@ endereços limpos escolhidos pelo Social Regional:
 | App | `insanosrj4.github.io/App` (a raiz também abre o app) |
 | Ficha | `insanosrj4.github.io/Ficha-pretendentes/Barra` (uma pasta por divisão, sem acento) |
 | Mesa | `insanosrj4.github.io/Controle-pretendentes` |
+| Atualizar cadastro | `insanosrj4.github.io/Atualizar-cadastro` (27/11/2026) |
 
 - Cada endereço é uma **pasta com um `index.html` gerado** por
-  `ferramentas/paginas.mjs` a partir de `index.html`, `ficha.html` e
-  `mesa.html`: a mesma página com `<base href="/">`, pra `css/`, `js/` e
+  `ferramentas/paginas.mjs` a partir de `index.html`, `ficha.html`,
+  `mesa.html` e `cadastro.html`: a mesma página com `<base href="/">`, pra `css/`, `js/` e
   `img/` serem achados na raiz. A ficha tira a divisão do nome da pasta
   (`divisaoDaPasta`). O `regras.mjs` acusa cópia desatualizada.
 - O **`404.html`** (também gerado) leva o endereço escrito em minúscula, sem
@@ -99,8 +100,11 @@ sabe **qual** aba desenhar, nunca **como**. Cada um exporta as próprias
 ações, e o `app.js` junta todos os mapas.
 
 O menu organiza essas seções em três áreas, sem mudar permissões: **ADM**
-(Caixinha, Estoque ADM no Regional, Entrada/Saída e Membros), **Operacional** (Relatórios, Relatório
-individual, Insights, Funções especiais no Regional e Eventos) e **Social** (Doações). Depois do PIN, o
+(Caixinha, Estoque ADM no Regional, Entrada/Saída, Membros — com a aba
+Carteirinhas — e Pretendentes), **Operacional** (Relatórios, Relatório
+individual, Insights, Funções especiais no Regional e Eventos) e **Social**
+(Painel Social no Regional, Doações e Ações Sociais). A lista dos cards e
+de onde cada um aparece fica em `js/telas/menu-organizador.js`. Depois do PIN, o
 mural e os avisos continuam na raiz; tocar numa área abre apenas as
 ferramentas dela. Uma área sem nenhuma ferramenta liberada naquele escopo
 fica escondida. O PIN continua sendo um só por divisão — essa separação é
@@ -1029,6 +1033,42 @@ que saiu.
   A ação `aniversarios` devolve só nome, grau, divisão e data. Quem nasceu
   em 29/02 faz aniversário em 28/02 nos anos que não são bissextos.
 
+## 🔗 Atualizar cadastro (o irmão completa a própria carteirinha)
+
+Criado em 27/11/2026, a pedido do Social Regional: pedir os dados de cada
+irmão e redigitar na carteirinha estava dando trabalho. O link
+`insanosrj4.github.io/Atualizar-cadastro` (`cadastro.html` + `js/cadastro.js`,
+desenho em `js/telas/cadastro.js`, regras em `js/dominio/cadastro-link.js`)
+abre com os 7 cards das divisões (ordem oficial, com "✅ X de Y completos");
+tocar na divisão mostra os irmãos por grau, como em Membros, cada um com
+"✅ completo" ou "📝 faltam N"; tocar no nome abre um formulário só com o que
+está **em branco**: nome completo, telefone, nascimento, data de entrada no
+clube, contato de emergência (nome, parentesco, telefone), tipo sanguíneo,
+plano de saúde e alergia/condição (Sim/Não → "Qual?", como na ficha do
+pretendente; a planilha junta as duas no campo único da carteirinha). Sem
+foto (decisão do clube).
+
+- **É uma página à parte**, irmã da ficha e da Mesa: não pede PIN e não leva
+  a lugar nenhum do app.
+- **Ninguém lê nada pelo link.** `cadastroLista` (pública) devolve nome,
+  grau, cargo, divisão e QUAIS campos faltam - nunca o valor de um campo. O
+  que já está na carteirinha aparece só como "✅ já informado".
+- **Só se grava campo vazio** (`cadastroCompletar`, pública, no Code.gs):
+  o que já estava fica, inclusive a foto e a data de ingresso. Corrigir é com
+  o organizador, no ✏️ Editar dados. A data de entrada vai pro cadastro de
+  Membros (coluna Entrada) e não conta como entrada no livro de Entrada/Saída.
+- **Liga/desliga**: card 🔗 no topo da aba Carteirinhas, **só no Regional**
+  (`cadastroLinkSalvar`, protegida e só do Regional; a chave é a propriedade
+  `CADASTRO_LINK_ABERTO` do script). Nasce fechado. Fechado, a página diz
+  "Prazo encerrado" e nada grava; o card mostra quantos já completaram
+  quando está aberto.
+- No 📜 Registro: "Carteirinha pelo link", com o irmão e **quais** campos
+  entraram, nunca o valor. Campo-isca e freio de 400 envios por dia, como na
+  ficha.
+- Code.gs `2026-11-27-atualizar-cadastro`. Testes: bloco "link
+  Atualizar-cadastro" no `planilha.mjs` e no `regras.mjs`, telas `cadastro /`
+  e `carteirinhas / regional: link` no `telas.mjs`.
+
 ## Ficha de Admissão (o link do pretendente)
 
 Criada em 14/11/2026 para tirar do WhatsApp (e do PDF editável) a ficha de
@@ -1666,7 +1706,7 @@ a cada mudança:
 | `servidor.py` | serve o app local com o cache desligado |
 | `estrutura.py` | 7 verificações: imports circulares, hierarquia de camadas, sintaxe, nome sem import, import sobrando, ações sem tratador |
 | `regras.mjs` | as regras do clube que, se quebrarem, saem erradas numa convocação sem ninguém perceber |
-| `telas.mjs` | desenha as 244 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
+| `telas.mjs` | desenha as 394 telas e abas com dados falsos; com `--html` grava tudo para comparar antes/depois |
 | `planilha.mjs` | roda o `Code.gs` de verdade contra uma planilha de mentira: encerramento automático, PIN, relatório individual, responsável, textos, chamada do evento, doações, caixinha e entrada/saída |
 
 O `--html` do `telas.mjs` é a rede de proteção mais útil: captura o HTML de
@@ -1813,7 +1853,7 @@ ferramentas, acima):
 
     py ferramentas/estrutura.py     # imports, camadas, sintaxe, ações
     node ferramentas/regras.mjs     # ordem hierárquica e formato da convocação
-    node ferramentas/telas.mjs      # desenha as 244 telas e abas
+    node ferramentas/telas.mjs      # desenha as 394 telas e abas
     node ferramentas/planilha.mjs   # o encerramento automático, no Code.gs
 
 Eles dizem que o app **não quebrou**, não que está bonito: não cobrem
@@ -1841,14 +1881,15 @@ Ideias registradas, nada pedido ainda:
   eventos só aparecem no histórico, fora do %.
 
 - **Doações e Caixinha, segunda etapa:** mostrar as duas no Relatório
-  individual de cada integrante e nas abas de resumo da planilha; levar
-  para as outras divisões (uma chave a mais em
-  `DIVISOES_COM_DOACOES_E_CAIXINHA`); e uma visão do Regional com todas as
-  divisões juntas (inclusive o caixa de cada uma).
+  individual de cada integrante e nas abas de resumo da planilha; e uma
+  visão do Regional com todas as divisões juntas (inclusive o caixa de cada
+  uma). Levar para as outras divisões já foi feito: desde 14/11/2026 as
+  duas estão nas 7.
 
 - **Multi-divisão de verdade** (um jogo de abas por divisão na planilha) —
   ver [PLANO-MULTI-DIVISAO.md](PLANO-MULTI-DIVISAO.md). Combinado que fica
   para uma sessão dedicada.
-- `js/telas/relatorios.js` é hoje o maior arquivo (593 linhas). É uma tela
-  coerente com abas internas; se um dia incomodar, dá para repartir por aba,
-  como já foi feito com o organizador.
+- `js/telas/relatorios.js` é hoje a maior tela (937 linhas; no `js/`, só o
+  `ui/imagem.js` é maior, com cerca de 2 mil). É uma tela coerente com abas
+  internas; se um dia incomodar, dá para repartir por aba, como já foi feito
+  com o organizador.

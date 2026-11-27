@@ -27,6 +27,7 @@ import { escopoPorChave, escoposEmOrdemDeExibicao, funcaoPorChave } from '../nuc
 import { linhaFuncoes, nivelDoGrau, selinhoIniciais } from '../ui/comuns.js';
 import { imagemCarteirinha, mostrarPreviaImagem } from '../ui/imagem.js';
 import { partesDoPretendente, textoFichaAdmissao } from '../dominio/admissao.js';
+import { linkDoCadastro, resumoDoCadastro } from '../dominio/cadastro-link.js';
 
 function membro() { return state.roster.find(m => m.id === state.carteirinhaMembroId); }
 function ficha() { return state.carteirinhaFicha || {}; }
@@ -41,7 +42,7 @@ export function renderAdminCarteirinhas() {
   if (state.carteirinhasProntas) return renderProntas();
   const membros = membrosDaLista();
   if (!membros.length) return '<div class="empty">Nenhum membro cadastrado ainda.</div>';
-  const topo = state.carteirinhasExportar ? topoSelecao(membros) : topoLista();
+  const topo = state.carteirinhasExportar ? topoSelecao(membros) : (state.adminEscopo === 'regional' ? cardLinkCadastro() : '') + topoLista();
   if (state.adminEscopo !== 'regional') {
     return topo + '<div class="pc-grade">' + gruposPorGrau(membrosDoEscopo()).map(g => `
       <div class="card lista-cadastro">${blocoGrau(state.adminEscopo, g)}</div>
@@ -447,6 +448,48 @@ export function atualizarCampoCarteirinha(el) {
   return false;
 }
 
+// ---------- o link Atualizar-cadastro (27/11/2026) -----------------------
+// O irmao abre o link, toca no proprio nome e completa o que falta na
+// carteirinha (pagina cadastro.html). Aqui, so no Regional: abrir e fechar o
+// link, copiar e ver quantos ja completaram. Fechado, a planilha nao manda
+// a lista - por isso a contagem so aparece com o link aberto.
+function cardLinkCadastro() {
+  const l = state.cadastroLink;
+  const salvando = state.cadastroLinkSalvando;
+  const situacao = state.cadastroLinkErro ? `Não consegui ver como está o link: ${escapeHtml(state.cadastroLinkErro)}.`
+    : !l ? 'Vendo como está o link…'
+    : l.aberto ? `🟢 <strong>Aberto</strong> · ✅ ${l.completos} de ${l.total} irmãos com a carteirinha completa`
+    : '🔒 <strong>Fechado</strong> · quem abrir o link vê "Prazo encerrado"';
+  return `
+    <div class="card pret-links no-print" style="margin-bottom:14px;">
+      <div class="painel-titulo">🔗 Link Atualizar-cadastro</div>
+      <div class="pret-explica">O irmão abre, toca no próprio nome e completa o que falta na carteirinha dele. Só preenche o que está em branco e não vê o que já está lá.</div>
+      <div class="cad-link-situacao">${situacao}</div>
+      <div class="pret-link-linha">
+        <div class="pret-link-texto"><div class="pret-link-url">${escapeHtml(linkDoCadastro(document.baseURI))}</div></div>
+        <button class="btn secondary pret-link-copiar" data-action="cadastro-link-copiar">📋 Copiar</button>
+      </div>
+      ${l ? `<button class="btn ${l.aberto ? 'secondary' : ''} block" data-action="cadastro-link-alternar" ${salvando ? 'disabled' : ''}>${salvando ? 'Salvando…' : l.aberto ? '🔒 Fechar o link' : '🔓 Abrir o link'}</button>`
+        : state.cadastroLinkErro ? '<button class="btn secondary block" data-action="cadastro-link-recarregar">Tentar de novo</button>' : ''}
+    </div>`;
+}
+
+// Como esta o link (e, aberto, quantos completaram). Publica, a mesma
+// leitura da pagina: aberto, ela traz a lista com o que falta de cada um.
+export async function carregarCadastroLink() {
+  state.cadastroLinkCarregando = true;
+  state.cadastroLinkErro = null;
+  render();
+  try {
+    const r = await api('cadastroLista');
+    state.cadastroLink = { aberto: !!r.aberto, ...resumoDoCadastro(r.membros) };
+  } catch (e) {
+    state.cadastroLinkErro = e.message;
+  }
+  state.cadastroLinkCarregando = false;
+  render();
+}
+
 // Busca a carteirinha e a presenca do integrante, juntas.
 async function buscar(id) {
   state.carteirinhaCarregando = true;
@@ -525,6 +568,22 @@ function marcadosEmOrdem() {
 }
 
 export const acoes = {
+  'cadastro-link-copiar': async (id, target, action, e) => { await copiarTexto(linkDoCadastro(document.baseURI)); },
+  'cadastro-link-recarregar': async (id, target, action, e) => carregarCadastroLink(),
+  'cadastro-link-alternar': async (id, target, action, e) => {
+    const l = state.cadastroLink;
+    if (!l || state.cadastroLinkSalvando) return;
+    state.cadastroLinkSalvando = true;
+    render();
+    try {
+      const r = await api('cadastroLinkSalvar', { aberto: !l.aberto });
+      mostrarAviso(r.aberto ? '🔓 Link aberto - já pode mandar pro grupo' : '🔒 Link fechado');
+    } catch (err) {
+      // O balao do api() ja explica o erro (nucleo/falhas.js).
+    }
+    state.cadastroLinkSalvando = false;
+    return carregarCadastroLink();
+  },
   'abrir-carteirinha': async (id, target, action, e) => {
     fecharCarteirinha();
     state.carteirinhaMembroId = id;

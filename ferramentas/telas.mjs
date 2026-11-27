@@ -83,7 +83,7 @@ function listar(dir, base = '') {
   return out;
 }
 log('=== 1. carregar cada modulo ===');
-const ENTRADAS = ['app.js', 'ficha.js', 'mesa.js'];
+const ENTRADAS = ['app.js', 'ficha.js', 'mesa.js', 'cadastro.js'];
 let falhasCarga = 0;
 for (const m of listar(JS).sort()) {
   // As duas entradas desenham a pagina ao carregar: o app.js dispara a
@@ -1044,6 +1044,38 @@ add('carteirinhas / regional com a Barra aberta', { ...cart, adminEscopo:'region
 add('carteirinhas / regional selecionando', { ...cartSel, adminEscopo:'regional', carteirinhasDivisoesAbertas: new Set(['barra']) }, T.renderAdmin);
 add('carteirinhas / whatsapp simplificado', { ...cartSel, carteirinhasExportar: 'whatsapp', carteirinhasSimplificado: true }, T.renderAdmin);
 add('carteirinhas / prontas (nenhuma)',     { ...cartSel, carteirinhasProntas: [] }, T.renderAdmin);
+// O card do link Atualizar-cadastro (27/11/2026), so no topo do Regional.
+const cartReg = { ...cart, adminEscopo:'regional', carteirinhaMembroId: null };
+add('carteirinhas / regional: link vendo',   cartReg, T.renderAdmin);
+add('carteirinhas / regional: link fechado', { ...cartReg, cadastroLink: { aberto:false, total:0, completos:0 } }, T.renderAdmin);
+add('carteirinhas / regional: link aberto',  { ...cartReg, cadastroLink: { aberto:true, total:84, completos:12 } }, T.renderAdmin);
+add('carteirinhas / regional: link salvando', { ...cartReg, cadastroLink: { aberto:true, total:84, completos:12 }, cadastroLinkSalvando: true }, T.renderAdmin);
+add('carteirinhas / regional: link com erro', { ...cartReg, cadastroLinkErro: 'Falha de conexao' }, T.renderAdmin);
+// A pagina Atualizar-cadastro (cadastro.html): o desenho mora em
+// telas/cadastro.js e recebe o estado da propria pagina, nao o do app.
+{
+  const K = await import(url('telas/cadastro.js'));
+  const pag = (estado) => (app) => { app.innerHTML = K.htmlCadastro({ tela:'carregando', membros:null, erro:null, escopo:null, membroId:null, ...estado }); };
+  const tudo = ['nomeCompleto','telefone','nascimento','entrada','emergenciaNome','emergenciaParentesco','emergenciaTelefone','tipoSanguineo','planoSaude','saude'];
+  const irmaos = [
+    { id:'m1', nome:'Costa', grau:'VI', cargo:'Diretor', divisao:'Barra - RJ4', afastado:false, falta:['tipoSanguineo','saude'] },
+    { id:'m2', nome:'Bull', grau:'VIII', cargo:'', divisao:'Barra - RJ4', afastado:false, falta: tudo },
+    { id:'m3', nome:'Almeida Junior', grau:'X', cargo:'', divisao:'Barra - RJ4', afastado:true, falta:[] },
+    { id:'m6', nome:'Chefe', grau:'V', cargo:'Diretor Regional', divisao:'Regional RJ4', afastado:false, falta:[] },
+  ];
+  add('cadastro / carregando', {}, pag({}));
+  add('cadastro / erro', {}, pag({ tela:'erro', erro:'Sem conexão com a planilha. Confira a internet e tente de novo.' }));
+  add('cadastro / fechado', {}, pag({ tela:'fechado' }));
+  add('cadastro / cards', {}, pag({ tela:'cards', membros: irmaos }));
+  add('cadastro / lista da Barra', {}, pag({ tela:'lista', membros: irmaos, escopo:'barra' }));
+  add('cadastro / lista vazia (Taquara)', {}, pag({ tela:'lista', membros: irmaos, escopo:'taquara' }));
+  add('cadastro / form (falta pouco)', {}, pag({ tela:'form', membros: irmaos, escopo:'barra', membroId:'m1' }));
+  add('cadastro / form (falta tudo)', {}, pag({ tela:'form', membros: irmaos, escopo:'barra', membroId:'m2' }));
+  add('cadastro / form (já completo)', {}, pag({ tela:'form', membros: irmaos, escopo:'barra', membroId:'m3' }));
+  add('cadastro / form (irmão sumiu)', {}, pag({ tela:'form', membros: irmaos, escopo:'barra', membroId:'zz' }));
+  add('cadastro / enviado', {}, pag({ tela:'enviado', membros: irmaos, escopo:'barra', membroId:'m3' }));
+  add('cadastro / enviado (ainda falta)', {}, pag({ tela:'enviado', membros: irmaos, escopo:'barra', membroId:'m1' }));
+}
 add('carteirinha / com os dados',           { ...cart, carteirinhaFicha: fichaCheia }, T.renderAdmin);
 add('carteirinha / vazia',                  { ...cart, carteirinhaFicha: {} }, T.renderAdmin);
 add('carteirinha / editando',               { ...cart, carteirinhaFicha: fichaCheia, carteirinhaForm: { ...fichaCheia, nascimentoTexto:'12/03/1985' } }, T.renderAdmin);

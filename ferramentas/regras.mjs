@@ -2043,6 +2043,11 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
   const semFrase = protegidas.filter(a => !LEITURAS.includes(a)).concat(['presenca']).filter(a => !F.ehGravacaoComAviso(a));
   confere('toda gravação tem a frase do balão', semFrase, []);
   confere('leitura e ficha do pretendente não abrem balão', LEITURAS.concat(['dados', 'presencas', 'admissaoEnviar']).filter(a => F.ehGravacaoComAviso(a)), []);
+  // A pagina Atualizar-cadastro mostra o erro no proprio formulario.
+  confere('o link Atualizar-cadastro não abre balão', ['cadastroLista', 'cadastroCompletar'].filter(a => F.ehGravacaoComAviso(a)), []);
+  confere('abrir e fechar o link têm frase', [F.explicarFalha('cadastroLinkSalvar', { aberto: true }, new Error('x')).titulo,
+    F.explicarFalha('cadastroLinkSalvar', { aberto: false }, new Error('x')).titulo],
+    ['Não foi possível abrir o link Atualizar-cadastro.', 'Não foi possível fechar o link Atualizar-cadastro.']);
   confere('o caso do Amorim', F.explicarFalha('estoqueAdmMovimentar', { tipo: 'saida' }, new Error('Quantidade maior que o saldo disponivel')),
     { titulo: 'Não foi possível registrar a saída.', motivo: 'A quantidade é maior que o saldo do material.' });
   confere('sem internet não é culpa de quem tocou', F.explicarFalha('presenca', {}, new Error('Falha de conexao')).motivo,
@@ -2060,6 +2065,32 @@ log('=== ficha de admissão: máscaras, CPF e a conferência antes de enviar ===
     aparelhoCurto('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'),
     aparelhoCurto('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36 Edg/131.0'),
   ], ['Android 14 · Chrome', 'Android 13 · Samsung', 'iPhone iOS 17 · Safari', 'Windows · Edge']);
+}
+{
+  log('');
+  log('=== link Atualizar-cadastro (dominio/cadastro-link.js) ===');
+  const K = await import(url('dominio/cadastro-link.js'));
+  const hoje = '2026-11-27';
+  const tudo = K.DADOS_DO_CADASTRO.map(d => d.chave);
+  confere('os dados batem com os do Code.gs (CAMPOS_CADASTRO)', tudo,
+    ['nomeCompleto', 'telefone', 'nascimento', 'entrada', 'emergenciaNome', 'emergenciaParentesco', 'emergenciaTelefone', 'tipoSanguineo', 'planoSaude', 'saude']);
+  confere('todo campo do formulário completa um dado conhecido', K.CAMPOS_CADASTRO.filter(c => !tudo.includes(c.de)).map(c => c.chave), []);
+  confere('só aparece a parte do que falta', K.partesQueFaltam(['tipoSanguineo', 'saude']).map(p => [p.titulo, p.campos.map(c => c.chave)]),
+    [['Saúde', ['tipoSanguineo', 'alergia', 'alergiaQual', 'condicao', 'condicaoQual']]]);
+  confere('já informado: só o nome do dado', K.jaInformados(['telefone']).length, tudo.length - 1);
+  const falta = ['telefone', 'entrada', 'planoSaude', 'saude'];
+  const erros = (v) => K.conferirCadastro(v, falta, hoje).map(e => e.chave);
+  confere('vazio: cobra o que aparece (o "Qual?" só no Sim)', erros({}), ['telefone', 'entrada', 'convenio', 'alergia', 'condicao']);
+  const certo = { telefone: '(21) 98888-7777', entrada: '2020-03-01', convenio: 'Sim', convenioQual: 'Unimed', alergia: 'Nao', condicao: 'Nao' };
+  confere('preenchido certo: passa', erros(certo), []);
+  confere('Sim sem dizer qual é cobrado', erros({ ...certo, alergia: 'Sim' }), ['alergiaQual']);
+  confere('telefone sem DDD e ingresso no futuro', erros({ ...certo, telefone: '98888-7777', entrada: '2026-12-25' }), ['telefone', 'entrada']);
+  confere('data escrita errada é cobrada', erros({ ...certo, entrada: '31/02' }), ['entrada']);
+  confere('o que não falta não é cobrado nem enviado', Object.keys(K.cadastroParaEnvio({ ...certo, nomeCompleto: 'X' }, falta)),
+    ['telefone', 'entrada', 'convenio', 'convenioQual', 'alergia', 'alergiaQual', 'condicao', 'condicaoQual']);
+  confere('voltou pro Não: o nome do plano não vai', K.cadastroParaEnvio({ ...certo, convenio: 'Nao' }, falta).convenioQual, '');
+  confere('resumo de completos', K.resumoDoCadastro([{ falta: [] }, { falta: ['saude'] }, { falta: [] }]), { total: 3, completos: 2 });
+  confere('o link sai da raiz do site', K.linkDoCadastro('https://insanosrj4.github.io/'), 'https://insanosrj4.github.io/Atualizar-cadastro');
 }
 {
   log('');

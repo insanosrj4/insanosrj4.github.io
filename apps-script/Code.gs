@@ -21,7 +21,7 @@
 
 // Marcador para conferir o que esta publicado de fato: basta chamar a URL do
 // Web App com ?action=versao. Subir sempre junto com as alteracoes.
-var VERSAO = '2026-11-25-editar-ficha';
+var VERSAO = '2026-11-27-atualizar-cadastro';
 
 var ABA_MEMBROS = 'Membros';
 var ABA_EVENTOS = 'Eventos';
@@ -395,7 +395,9 @@ var ACOES_PROTEGIDAS = [
   // A ficha de admissao de quem ja e irmao (na carteirinha): CPF, RG...
   'fichaCadastro',
   // O Registro: so o Regional le.
-  'registro'
+  'registro',
+  // O liga/desliga do link Atualizar-cadastro (27/11/2026): so o Regional.
+  'cadastroLinkSalvar'
 ];
 
 function executar(action, p) {
@@ -513,6 +515,12 @@ function executar(action, p) {
   if (action === 'pretendenteRemover') return comTrava(function () { return removerPretendente(p); });
   if (action === 'pretendenteEditar') return comTrava(function () { return editarPretendente(p); });
   if (action === 'fichaCadastro') return lerFichaCadastro(p);
+  // O link Atualizar-cadastro (27/11/2026): o irmao completa a propria
+  // carteirinha. Ler e gravar sao publicos, como a ficha do pretendente -
+  // mas ninguem le dado nenhum (so O QUE falta) e so se grava campo vazio.
+  if (action === 'cadastroLista') return lerCadastroLink();
+  if (action === 'cadastroCompletar') return comTrava(function () { return completarCadastroPeloLink(p); });
+  if (action === 'cadastroLinkSalvar') return comTrava(function () { return salvarCadastroLink(p); });
   throw new Error('Acao desconhecida: ' + action);
 }
 
@@ -534,7 +542,7 @@ function executar(action, p) {
 var ACOES_SO_DO_REGIONAL = ['insightSalvar', 'insightRodadaAjustar', 'insightRodadaRemover',
   'insightMembroRemover', 'insightMembroReincluir', 'relatorio',
   'funcoesEspeciais', 'funcaoEventoSalvar', 'funcaoEventoStatus', 'funcaoEventoRemover', 'funcaoPresencasSalvar',
-  'funcaoConfigSalvar', 'registro'];
+  'funcaoConfigSalvar', 'registro', 'cadastroLinkSalvar'];
 
 function guardaDaDivisao(action, p) {
   var pin = String(p.pin || '');
@@ -622,7 +630,8 @@ var ROTULOS_REGISTRO = {
   funcaoPresencasSalvar: 'Funções: presenças', funcaoConfigSalvar: 'Funções: ajuste',
   pretendenteSituacao: 'Pretendente: situação', admissaoEnviar: 'Ficha de admissão',
   pretendenteAprovar: 'Pretendente aprovado', pretendenteRemover: 'Pretendente desistiu',
-  pretendenteEditar: 'Pretendente: ficha corrigida'
+  pretendenteEditar: 'Pretendente: ficha corrigida',
+  cadastroCompletar: 'Carteirinha pelo link', cadastroLinkSalvar: 'Link Atualizar-cadastro'
 };
 
 // O que entra no lugar de executar() nas duas portas (doGet e doPost): roda
@@ -656,6 +665,7 @@ function gravarNoRegistro(valores) {
 // Por qual PIN a pessoa entrou. Presenca e ficha nao tem PIN.
 function quemNoRegistro(action, p) {
   if (action === 'admissaoEnviar') return SEM_PIN_REGISTRO + ' · link ' + (ESCOPOS_NOME[String(p.divisao || '')] || '?');
+  if (action === 'cadastroCompletar') return SEM_PIN_REGISTRO + ' · link Atualizar-cadastro';
   if (ACOES_PROTEGIDAS.indexOf(action) === -1) return SEM_PIN_REGISTRO;
   return ESCOPOS_NOME[String(p.escopo || '')] || SEM_PIN_REGISTRO;
 }
@@ -672,7 +682,7 @@ function contextoAntesDoRegistro(action, p) {
   var id = String(p.id || '');
   if (action === 'eventoRemover') return { nome: nomeDe(ABA_EVENTOS, CAB_EVENTOS, id) };
   if (action === 'membroRemover' || action === 'insightMembroRemover' || action === 'insightMembroReincluir') return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, id) };
-  if (action === 'membroMovimentar' || action === 'membroConfirmarGrau' || action === 'fichaMembroSalvar') {
+  if (action === 'membroMovimentar' || action === 'membroConfirmarGrau' || action === 'fichaMembroSalvar' || action === 'cadastroCompletar') {
     return { nome: nomeDe(ABA_MEMBROS, CAB_MEMBROS, String(p.membroId || '')) };
   }
   // O nome no colete do pretendente (nao e dado pessoal: e como o clube o chama).
@@ -791,6 +801,10 @@ function detalheDoRegistro(a, p, r, antes) {
     case 'pretendenteRemover': x = [antes.nome || p.id, 'ficha apagada', pelaMesa(p)]; break;
     // So o nome: o que foi corrigido pode ser CPF, endereco... e nao entra.
     case 'pretendenteEditar': x = [antes.nome || p.id, p.nomeColete && p.nomeColete !== antes.nome ? 'agora ' + p.nomeColete : '']; break;
+    // So QUAIS campos entraram, nunca o valor (telefone, saude...).
+    case 'cadastroCompletar':
+      x = [antes.nome || p.membroId, r.ok ? ((r.gravados || []).length ? (r.gravados || []).map(function (k) { return ROTULO_CAMPO_CADASTRO[k] || k; }).join(', ') : 'nada novo') : '']; break;
+    case 'cadastroLinkSalvar': x = [ehVerdadeiro(p.aberto) ? 'aberto' : 'fechado']; break;
     default: x = [p.id];
   }
   return x.filter(function (v) { return v !== undefined && v !== null && String(v).trim() !== ''; }).join(' · ');
@@ -2786,6 +2800,163 @@ function lerAniversarios(divisao, pin) {
     .filter(function (m) { return nascimento[m.id] && (divisao === 'regional' || m.divisao === nomeDaDivisao); })
     .map(function (m) { return { id: m.id, nome: m.nome, grau: m.grau, divisao: m.divisao, nascimento: nascimento[m.id] }; });
   return { ok: true, aniversarios: lista };
+}
+
+// ---------- ATUALIZAR CADASTRO (o link do irmao, 27/11/2026) ----------
+// insanosrj4.github.io/Atualizar-cadastro: o irmao acha o proprio nome e
+// completa a carteirinha dele, em vez do ADM pedir um por um e redigitar.
+// Tres regras, porque o link circula e qualquer um toca em qualquer nome:
+//   - ninguem LE nada: a lista diz so o nome e QUAIS campos faltam, nunca o
+//     valor de um campo ja preenchido;
+//   - so se grava campo VAZIO: o que ja esta la fica (corrigir e com o
+//     organizador, no ✏️ Editar dados) - ninguem estraga uma carteirinha
+//     pronta pelo link;
+//   - o link tem liga/desliga (so o Regional, pelo app). Fechado, a lista
+//     nao vem e nada grava.
+// A data de ingresso mora em Membros (coluna Entrada), nao em MembrosFicha,
+// e segue a mesma regra: so pra quem nao tem.
+var PROP_CADASTRO_ABERTO = 'CADASTRO_LINK_ABERTO';
+// Freio pra link em mao errada, somando todo mundo no dia. A RJ4 inteira
+// cabe com folga (cada irmao manda uma vez, talvez duas).
+var CADASTRO_POR_DIA = 400;
+// Os campos que o link completa, na ordem do formulario, e a coluna de cada
+// um em MembrosFicha (CAB_FICHAS). 'entrada' fica fora do mapa: e de Membros.
+var CAMPOS_CADASTRO = ['nomeCompleto', 'telefone', 'nascimento', 'entrada', 'emergenciaNome', 'emergenciaParentesco',
+  'emergenciaTelefone', 'tipoSanguineo', 'planoSaude', 'saude'];
+var COL_FICHA_CADASTRO = { telefone: 1, emergenciaNome: 2, emergenciaParentesco: 3, emergenciaTelefone: 4,
+  nascimento: 5, tipoSanguineo: 6, saude: 7, nomeCompleto: 10, planoSaude: 11 };
+// O nome de cada campo no Registro (o valor nunca vai).
+var ROTULO_CAMPO_CADASTRO = { nomeCompleto: 'nome completo', telefone: 'telefone', nascimento: 'nascimento',
+  entrada: 'data de ingresso', emergenciaNome: 'contato de emergência', emergenciaParentesco: 'parentesco',
+  emergenciaTelefone: 'tel. de emergência', tipoSanguineo: 'tipo sanguíneo', planoSaude: 'plano de saúde',
+  saude: 'alergias e condições' };
+
+function cadastroLinkAberto() {
+  return PropertiesService.getScriptProperties().getProperty(PROP_CADASTRO_ABERTO) === 'sim';
+}
+
+function salvarCadastroLink(p) {
+  var aberto = ehVerdadeiro(p.aberto);
+  var props = PropertiesService.getScriptProperties();
+  if (aberto) props.setProperty(PROP_CADASTRO_ABERTO, 'sim');
+  else props.deleteProperty(PROP_CADASTRO_ABERTO);
+  return { ok: true, aberto: aberto };
+}
+
+// Os campos vazios de um irmao: `m` e a linha dele em Membros, `f` a de
+// MembrosFicha (ou nada, se a carteirinha nunca foi salva).
+function faltaNoCadastro(m, f) {
+  return CAMPOS_CADASTRO.filter(function (k) {
+    if (k === 'entrada') return !formatarData(m[8]).trim();
+    return !f || !formatarData(f[COL_FICHA_CADASTRO[k]]).trim();
+  });
+}
+
+// A lista da pagina: quem e de uma divisao da RJ4, com o nome, grau, cargo,
+// divisao e o que falta. Fechado, so diz que esta fechado.
+function lerCadastroLink() {
+  if (!cadastroLinkAberto()) return { ok: true, aberto: false };
+  var fichas = {};
+  linhas(aba(ABA_FICHAS, CAB_FICHAS)).forEach(function (l) { if (l[0]) fichas[String(l[0])] = l; });
+  var membros = linhas(aba(ABA_MEMBROS, CAB_MEMBROS))
+    .filter(function (l) { return l[0] && CHAVE_POR_NOME_DIVISAO[String(l[3] || '')]; })
+    .map(function (l) {
+      return { id: String(l[0]), nome: String(l[1] || ''), grau: String(l[2] || ''), cargo: String(l[5] || ''),
+        divisao: String(l[3] || ''), afastado: estaAfastado(l), falta: faltaNoCadastro(l, fichas[String(l[0])]) };
+    });
+  return { ok: true, aberto: true, membros: membros };
+}
+
+// Confere o que veio do link. Devolve { campo: valor } so com o que veio
+// preenchido e valido; um campo que veio errado recusa o envio inteiro (a
+// pagina ja confere antes - aqui e pra quem monta o pedido a mao).
+function camposDoCadastro(p) {
+  var novos = {};
+  var texto = function (k, max) { var v = linhaCurta(p[k], max); if (v) novos[k] = v; };
+  texto('nomeCompleto', 120);
+  texto('emergenciaNome', 80);
+  texto('emergenciaParentesco', 40);
+  var tel = telefoneDaFicha(p.telefone, 'Telefone', false);
+  if (tel) novos.telefone = tel;
+  var telEm = telefoneDaFicha(p.emergenciaTelefone, 'Telefone do contato', false);
+  if (telEm) novos.emergenciaTelefone = telEm;
+  var nascimento = String(p.nascimento || '').trim();
+  if (nascimento) {
+    if (!dataISOValidaEstoqueAdm(nascimento) || nascimento > Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd') || nascimento < '1920-01-01') {
+      throw new Error('Data de nascimento invalida');
+    }
+    novos.nascimento = nascimento;
+  }
+  var entrada = validarDataDeIngresso(p.entrada);
+  if (entrada) novos.entrada = entrada;
+  var tipo = String(p.tipoSanguineo || '');
+  if (tipo) {
+    if (TIPOS_SANGUINEOS.indexOf(tipo) === -1) throw new Error('Tipo sanguineo invalido');
+    novos.tipoSanguineo = tipo;
+  }
+  // Plano, alergia e condicao vem como na ficha do pretendente (Sim/Nao e o
+  // "Qual?" no Sim) e viram os dois campos da carteirinha (saudeDaFicha).
+  var simNao = function (k, rotulo) {
+    var v = String(p[k] || '');
+    if (v && ADMISSAO_SIM_NAO.indexOf(v) === -1) throw new Error('Escolha: ' + rotulo);
+    if (v === 'Sim' && !linhaCurta(p[k + 'Qual'], 150)) throw new Error('Preencha: qual ' + rotulo.toLowerCase());
+    return v;
+  };
+  var saude = saudeDaFicha({ convenio: simNao('convenio', 'Plano de saude'), convenioQual: p.convenioQual,
+    alergia: simNao('alergia', 'Alergia'), alergiaQual: linhaCurta(p.alergiaQual, 150),
+    condicao: simNao('condicao', 'Condicao'), condicaoQual: linhaCurta(p.condicaoQual, 150) });
+  if (saude.plano) novos.planoSaude = saude.plano;
+  if (saude.condicoes) novos.saude = saude.condicoes;
+  return novos;
+}
+
+function completarCadastroPeloLink(p) {
+  if (!cadastroLinkAberto()) throw new Error('O prazo pra atualizar o cadastro acabou. Fale com o ADM da sua divisao');
+  // O campo-isca, como na ficha: robo preenche, gente nao ve. Finge que recebeu.
+  if (String(p.site || '')) return { ok: true, gravados: [], falta: [] };
+  var mid = String(p.membroId || '');
+  var sm = aba(ABA_MEMBROS, CAB_MEMBROS);
+  var membro = mid ? acharLinha(sm, function (l) { return String(l[0]) === mid; }) : null;
+  if (!membro || !CHAVE_POR_NOME_DIVISAO[String(membro.valores[3] || '')]) {
+    throw new Error('Integrante nao encontrado - abra o link de novo e procure seu nome');
+  }
+  var cache = CacheService.getScriptCache();
+  var chave = 'cadastroLink-' + Utilities.formatDate(new Date(), fuso(), 'yyyy-MM-dd');
+  var n = Number(cache.get(chave) || 0);
+  if (n >= CADASTRO_POR_DIA) throw new Error('Muitos envios hoje - tente de novo amanha ou fale com o ADM da sua divisao');
+  var novos = camposDoCadastro(p);
+
+  // A linha da carteirinha como esta (ou nova), toda em texto. So as
+  // colunas vazias recebem o que veio; a foto e o resto ficam.
+  var sf = aba(ABA_FICHAS, CAB_FICHAS);
+  var achado = acharLinha(sf, function (l) { return String(l[0]) === mid; });
+  var linha = [];
+  for (var i = 0; i < CAB_FICHAS.length; i++) {
+    var v = achado ? achado.valores[i] : '';
+    linha.push(i === 5 ? formatarData(v) : String(v === undefined || v === null ? '' : v));
+  }
+  linha[0] = mid;
+  var gravados = [];
+  CAMPOS_CADASTRO.forEach(function (k) {
+    if (!novos[k]) return;
+    if (k === 'entrada') {
+      if (formatarData(membro.valores[8]).trim()) return;
+      gravarDataDeIngresso(sm, membro.indice, mid, novos.entrada);
+      membro.valores[8] = novos.entrada;
+      gravados.push(k);
+      return;
+    }
+    var col = COL_FICHA_CADASTRO[k];
+    if (String(linha[col]).trim()) return;
+    linha[col] = novos[k];
+    gravados.push(k);
+  });
+  if (gravados.some(function (k) { return k !== 'entrada'; })) {
+    linha[9] = agora();
+    gravarLinhaComoTexto(sf, achado ? achado.indice : sf.getLastRow() + 1, linha);
+  }
+  cache.put(chave, String(n + 1), 21600);
+  return { ok: true, gravados: gravados, falta: faltaNoCadastro(membro.valores, linha) };
 }
 
 // ---------- FICHA DE ADMISSAO (o link do pretendente) ----------
