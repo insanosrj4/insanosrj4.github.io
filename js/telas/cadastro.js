@@ -95,7 +95,7 @@ function telaCards(c) {
   return `
     ${cabecalho('Regional RJ4')}
     <div class="card ficha-intro">
-      <h2 class="ficha-intro-titulo">Irmão, complete a sua carteirinha.</h2>
+      <h2 class="ficha-intro-titulo">Atualização de dados</h2>
       <p>Toque na sua divisão e depois no seu nome. Aparece só o que ainda falta na sua carteirinha - leva um minuto.</p>
       <div class="ficha-intro-nota">Seus dados ficam só com a administração do clube.</div>
     </div>
