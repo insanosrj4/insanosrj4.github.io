@@ -147,7 +147,6 @@ function telaLista(c) {
     <div class="back-link on-photo" data-cad="cards">‹ Divisões</div>
     ${cabecalho(nomeDivisaoAdmissao(c.escopo))}
     ${corpo}
-    <div class="pret-explica cad-nao-achou">Não achou seu nome? Fale com o ADM da sua divisão.</div>
     ${rodape}`;
 }
 

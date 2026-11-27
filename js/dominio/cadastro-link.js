@@ -47,7 +47,7 @@ export const PARTES_CADASTRO = [
     { chave: 'telefone', de: 'telefone', rotulo: 'Celular / WhatsApp', tipo: 'telefone', auto: 'tel' },
     { chave: 'nascimento', de: 'nascimento', rotulo: 'Data de nascimento', tipo: 'data', auto: 'bday' },
     { chave: 'entrada', de: 'entrada', rotulo: 'Data de entrada no clube', tipo: 'data',
-      ajuda: 'O dia em que você entrou no Insanos. Se não lembrar o dia certo, coloque o mais perto que souber.' },
+      ajuda: 'O dia em que você entrou no Insanos.' },
   ] },
   { titulo: 'Contato de emergência', campos: [
     { chave: 'emergenciaNome', de: 'emergenciaNome', rotulo: 'Nome do contato', tipo: 'texto', max: 80 },

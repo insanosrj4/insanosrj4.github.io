@@ -3294,7 +3294,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
    link no card do Regional. */
 .cad-situacao { flex-shrink: 0; font-size: 12px; font-weight: 600; color: #9BD8B0; white-space: nowrap; }
 .cad-situacao.falta { color: #E7C77E; }
-.cad-nao-achou { text-align: center; margin-top: 4px; }
 .cad-quem { display: flex; align-items: center; gap: 12px; }
 .cad-quem .iniciais { width: 40px; height: 40px; font-size: 15px; }
 .cad-quem-texto { min-width: 0; }
